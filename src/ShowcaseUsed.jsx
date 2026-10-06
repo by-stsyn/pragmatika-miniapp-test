@@ -133,7 +133,7 @@ const [filters, setFilters] = useState(() => {
   useEffect(() => {
     const fetchFeed = async () => {
   try {
-    const res = await fetch("/api/fetch-feed-used.php");
+    const res = await fetch("/api/fetch-feed-used");
     const xmlText = await res.text();
     const parser = new DOMParser();
     const xml = parser.parseFromString(xmlText, "text/xml");
