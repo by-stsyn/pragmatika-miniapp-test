@@ -85,6 +85,23 @@ platform.getId = () => {
   return 123456;
 };
 
+// Haptic feedback helper
+platform.haptic = (type = "light") => {
+  try {
+    if (isTelegram && window.Telegram?.WebApp?.HapticFeedback) {
+      if (type === "success" || type === "error" || type === "warning") {
+        window.Telegram.WebApp.HapticFeedback.notificationOccurred(type);
+      } else {
+        window.Telegram.WebApp.HapticFeedback.impactOccurred(type || "light");
+      }
+    } else if (navigator?.vibrate) {
+      navigator.vibrate(type === "success" ? [15, 30, 15] : 10);
+    }
+  } catch {
+    // ignore
+  }
+};
+
 // Унифицированное открытие бота
 platform.openSupport = (payload) => {
   if (isTelegram) {

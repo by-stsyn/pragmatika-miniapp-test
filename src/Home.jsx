@@ -54,11 +54,11 @@ const DEALER_BRANDS = [
     filterVendor: "Belgee",
   },
   {
-    name: "XCITE",
-    logo: "/logos/xcite.png",
+    name: "EVOLUTE",
+    logo: "/logos/evolute.png",
     countText: "Автомобили в наличии",
     badge: "NEW",
-    filterVendor: "XCITE",
+    filterVendor: "Evolute",
   },
 ];
 
@@ -118,6 +118,8 @@ export default function Home() {
         setUser({
           first_name: userData.firstName || userData.first_name || "Клиент",
           last_name: userData.lastName || userData.last_name || "",
+          photo: userData.photo || userData.photo_url || "",
+          username: userData.username || "",
         });
       }
 
@@ -322,10 +324,10 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-[#f8f9fa] text-[#1a202c] pb-[120px] font-sans antialiased selection:bg-[#8cc63f] selection:text-white">
       {/* ====================================================
-          1. ПРОСТОРНЫЙ ХЕДЕР С ОФИЦИАЛЬНЫМ ЛОГОТИПОМ
+          1. КОМПАКТНЫЙ ХЕДЕР В ОДНУ СТРОКУ (ЛОГОТИП, ЗВОНОК, ПРОФИЛЬ)
       ==================================================== */}
-      <header className="sticky top-0 z-40 bg-white border-b border-gray-200/80 px-4 sm:px-6 py-3.5 transition-all shadow-2xs">
-        <div className="max-w-xl mx-auto flex items-center justify-between gap-4">
+      <header className="sticky top-0 z-40 bg-white border-b border-gray-200/80 px-4 sm:px-6 py-2.5 sm:py-3 transition-all shadow-2xs">
+        <div className="max-w-xl mx-auto flex items-center justify-between gap-3">
           {/* Официальный логотип Pragmatika */}
           <div
             onClick={() => navigate("/")}
@@ -334,118 +336,153 @@ export default function Home() {
             <img
               src="/logo-pragmatika-1.svg"
               alt="Прагматика"
-              className="h-8 sm:h-9 w-auto object-contain max-w-[195px]"
+              className="h-7 sm:h-8 w-auto object-contain max-w-[155px] sm:max-w-[190px]"
               onError={(e) => {
                 e.currentTarget.src = "/logo-pragmatika.svg";
               }}
             />
           </div>
 
-          {/* Переход в ЛК в правом верхнем углу (стильная иконка профиля без громоздкой надписи) */}
-          <button
-            onClick={() => navigate("/ProfilePage")}
-            aria-label="Личный кабинет"
-            title="Личный кабинет"
-            className="w-10 h-10 rounded-full bg-white hover:bg-[#f0f7e8] border border-gray-200/90 hover:border-[#8cc63f] flex items-center justify-center transition-all shadow-2xs shrink-0 relative group"
-          >
-            {user?.photo ? (
-              <img
-                src={user.photo}
-                alt={user.first_name || "Профиль"}
-                className="w-8 h-8 rounded-full object-cover"
-              />
-            ) : (
-              <div className="w-8 h-8 rounded-full bg-[#f0f7e8] group-hover:bg-[#8cc63f] text-[#6fa02f] group-hover:text-white flex items-center justify-center transition-colors">
-                <User size={18} strokeWidth={2.2} />
-              </div>
-            )}
-            {/* Статусная точка бренда */}
-            <span className="w-2.5 h-2.5 bg-[#8cc63f] rounded-full border-2 border-white absolute top-0.5 right-0.5" />
-          </button>
-        </div>
+          {/* Правая часть в одну строчку: Звонок и Профиль */}
+          <div className="flex items-center space-x-2 sm:space-x-2.5 shrink-0">
+            <button
+              onClick={() => {
+                setCallbackTopic("Заказ звонка из шапки");
+                setShowCallback(true);
+              }}
+              className="flex items-center space-x-1.5 font-semibold text-gray-800 hover:text-[#76aa34] bg-[#f0f7e8] hover:bg-[#e4f2d3] px-3 py-1.5 rounded-full border border-[#8cc63f]/30 transition-all text-xs whitespace-nowrap cursor-pointer shadow-2xs"
+            >
+              <Phone size={13} className="text-[#76aa34] shrink-0" />
+              <span>Звонок</span>
+            </button>
 
-        {/* Индикатор сети и обратный звонок */}
-        <div className="max-w-xl mx-auto mt-3 pt-2.5 border-t border-gray-100 flex items-center justify-between text-xs sm:text-sm text-gray-500">
-          <div className="flex items-center space-x-1.5">
-            <MapPin size={14} className="text-[#8cc63f] shrink-0" />
-            <span className="font-medium text-gray-600 whitespace-nowrap">
-              Сеть дилерских центров
-            </span>
+            <button
+              onClick={() => navigate("/ProfilePage")}
+              aria-label="Личный кабинет"
+              title="Личный кабинет"
+              className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white hover:bg-[#f0f7e8] border border-gray-200/90 hover:border-[#8cc63f] flex items-center justify-center transition-all shadow-2xs shrink-0 relative group cursor-pointer"
+            >
+              {user?.photo ? (
+                <img
+                  src={user.photo}
+                  alt={user.first_name || "Профиль"}
+                  className="w-7 h-7 sm:w-8 sm:h-8 rounded-full object-cover"
+                />
+              ) : (
+                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#f0f7e8] group-hover:bg-[#8cc63f] text-[#6fa02f] group-hover:text-white flex items-center justify-center transition-colors">
+                  <User size={16} strokeWidth={2.2} />
+                </div>
+              )}
+              {/* Статусная точка бренда */}
+              <span className="w-2.5 h-2.5 bg-[#8cc63f] rounded-full border-2 border-white absolute top-0 right-0" />
+            </button>
           </div>
-          <button
-            onClick={() => {
-              setCallbackTopic("Заказ звонка из шапки");
-              setShowCallback(true);
-            }}
-            className="flex items-center space-x-1.5 font-semibold text-gray-800 hover:text-[#76aa34] bg-[#f0f7e8] hover:bg-[#e4f2d3] px-3 py-1.5 rounded-xl border border-[#8cc63f]/30 transition-all text-xs whitespace-nowrap ml-3 cursor-pointer shadow-2xs"
-          >
-            <Phone size={12} className="text-[#76aa34] shrink-0" />
-            <span>Заказать звонок</span>
-          </button>
         </div>
       </header>
 
       {/* Основной контент с просторными отступами и воздушной сеткой */}
-      <main className="max-w-xl mx-auto px-4 sm:px-6 pt-7 sm:pt-10 pb-28 sm:pb-32 space-y-9 sm:space-y-11">
+      <main className="max-w-xl mx-auto px-4 sm:px-6 pt-5 sm:pt-7 pb-28 sm:pb-32 space-y-7 sm:space-y-9">
         {/* ====================================================
-            2. ЛОЯЛЬНОСТЬ: БОНУСНАЯ КАРТА ИЗ ПРОФИЛЯ (БЕЗ ФЕЙКОВЫХ ЧИСЕЛ)
+            2. ПЕРСОНАЛИЗАЦИЯ: КАРТА УЧАСТНИКА ПРОГРАММЫ ЛОЯЛЬНОСТИ
         ==================================================== */}
-        <section className="bg-white rounded-2xl border border-gray-200/90 p-6 sm:p-7 shadow-xs">
-          <div className="flex items-center justify-between pb-5 border-b border-gray-100 gap-3">
-            <div className="min-w-0">
-              <p className="text-xs uppercase tracking-wider font-semibold text-gray-400">
-                Клубная программа
-              </p>
-              <h2 className="text-base sm:text-lg font-bold text-gray-900 mt-0.5 leading-snug">
-                {user?.first_name
-                  ? `Здравствуйте, ${user.first_name}!`
-                  : "Прагматика Бонус"}
-              </h2>
+        <section
+          onClick={() => navigate("/ProfilePage")}
+          className="relative bg-white hover:border-[#8cc63f] rounded-2xl border border-gray-200/90 p-5 sm:p-6 shadow-xs hover:shadow-md transition-all duration-200 group cursor-pointer overflow-hidden"
+        >
+          {/* Фоновый градиентный акцент */}
+          <div className="absolute -right-10 -top-10 w-32 h-32 bg-gradient-to-bl from-[#8cc63f]/10 to-transparent rounded-full pointer-events-none" />
+
+          {/* Верхняя строка: Аватар, имя, клубный статус и переход в профиль */}
+          <div className="flex items-center justify-between pb-4 border-b border-gray-100 gap-3 relative z-10">
+            <div className="flex items-center space-x-3 min-w-0">
+              {/* Аватар пользователя */}
+              <div className="relative shrink-0">
+                {user?.photo ? (
+                  <img
+                    src={user.photo}
+                    alt={user.first_name || "Участник"}
+                    className="w-12 h-12 rounded-full object-cover ring-2 ring-[#8cc63f]/40 shadow-2xs"
+                  />
+                ) : (
+                  <div className="w-12 h-12 rounded-full bg-[#f0f7e8] border border-[#8cc63f]/30 text-[#6fa02f] flex items-center justify-center font-bold text-base shadow-2xs">
+                    {user?.first_name ? user.first_name[0].toUpperCase() : <User size={20} />}
+                  </div>
+                )}
+                <span className="w-3 h-3 bg-[#8cc63f] rounded-full border-2 border-white absolute bottom-0 right-0" />
+              </div>
+
+              {/* Имя и статус клубной программы */}
+              <div className="min-w-0">
+                <div className="flex items-center space-x-1.5">
+                  <span className="text-[10px] sm:text-[11px] uppercase tracking-wider font-bold text-[#6fa02f] bg-[#f0f7e8] px-2 py-0.5 rounded-md">
+                    Участник клуба
+                  </span>
+                  {bonus?.number && (
+                    <span className="text-[10px] sm:text-[11px] font-mono text-gray-400">
+                      № {bonus.number}
+                    </span>
+                  )}
+                </div>
+                <h2 className="text-base sm:text-lg font-bold text-gray-900 mt-0.5 truncate leading-tight group-hover:text-[#76aa34] transition-colors">
+                  {user?.first_name
+                    ? `${user.first_name}${user.last_name ? " " + user.last_name : ""}`
+                    : "Клиент Прагматика"}
+                </h2>
+              </div>
             </div>
-            <span className="text-xs font-mono bg-gray-50 text-gray-600 px-3 py-1.5 rounded-lg border border-gray-200/80 whitespace-nowrap shrink-0">
-              {bonus?.number ? `№ ${bonus.number}` : "Клубная карта"}
-            </span>
+
+            {/* Иконка перехода в профиль */}
+            <div className="w-8 h-8 rounded-xl bg-gray-50 group-hover:bg-[#f0f7e8] text-gray-400 group-hover:text-[#76aa34] flex items-center justify-center transition-all shrink-0">
+              <ChevronRight size={18} className="group-hover:translate-x-0.5 transition-transform" />
+            </div>
           </div>
 
-          <div className="py-6 sm:py-7 flex items-baseline justify-between gap-4">
+          {/* Нижняя часть: Баланс бонусов и кнопки перехода */}
+          <div className="pt-4 flex items-end justify-between gap-3 relative z-10">
             <div className="min-w-0">
-              <span className="text-xs text-gray-500 block mb-1.5 leading-relaxed">
-                {bonus ? "Доступный баланс" : "Баланс баллов"}
+              <span className="text-xs text-gray-500 block mb-0.5">
+                Бонусный баланс
               </span>
-              <div className="flex items-baseline space-x-2">
-                <span className="text-3xl sm:text-4xl font-extrabold text-[#76aa34] tracking-tight leading-none">
+              <div className="flex items-baseline space-x-1.5">
+                <span className="text-2xl sm:text-3xl font-extrabold text-[#76aa34] tracking-tight leading-none">
                   {bonusLoading
                     ? "..."
                     : bonus?.balance !== undefined
                     ? Number(bonus.balance).toLocaleString("ru-RU")
                     : "0"}
                 </span>
-                <span className="text-sm font-semibold text-gray-600">
+                <span className="text-xs sm:text-sm font-bold text-gray-600">
                   баллов
                 </span>
               </div>
+              <span className="text-[11px] text-gray-400 mt-1 block leading-tight">
+                1 балл = 1 ₽ скидки при оплате сервиса
+              </span>
             </div>
 
-            <button
-              onClick={() => navigate("/BonusPage")}
-              className="bg-[#8cc63f] hover:bg-[#7ab82c] text-white text-xs sm:text-sm font-bold px-5 py-2.5 rounded-xl transition-all flex items-center justify-center space-x-1.5 shadow-xs whitespace-nowrap shrink-0 min-w-[110px] cursor-pointer"
-            >
-              <span>{bonus ? "История" : "Подробнее"}</span>
-              <ChevronRight size={16} className="shrink-0" />
-            </button>
-          </div>
-
-          <div className="pt-4 border-t border-gray-100 flex items-center justify-between text-xs sm:text-sm text-gray-500 gap-3">
-            <span className="leading-relaxed">
-              1 балл = 1 ₽ скидки при оплате сервиса и запчастей
-            </span>
-            <button
-              onClick={() => navigate("/ProfilePage")}
-              className="text-[#76aa34] font-semibold hover:underline flex items-center space-x-1 whitespace-nowrap shrink-0 cursor-pointer"
-            >
-              <span>В профиль</span>
-              <ArrowRight size={14} />
-            </button>
+            <div className="flex items-center space-x-2 shrink-0">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigate("/BonusPage");
+                }}
+                className="text-xs font-bold text-[#76aa34] hover:bg-[#f0f7e8] border border-[#8cc63f]/30 px-3 py-1.5 rounded-xl transition-all whitespace-nowrap cursor-pointer"
+              >
+                История
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigate("/ProfilePage");
+                }}
+                className="bg-[#8cc63f] hover:bg-[#7ab82c] text-white text-xs font-bold px-3.5 py-1.5 rounded-xl transition-all shadow-2xs whitespace-nowrap cursor-pointer flex items-center space-x-1"
+              >
+                <span>В профиль</span>
+                <ArrowRight size={13} />
+              </button>
+            </div>
           </div>
         </section>
 
@@ -601,15 +638,15 @@ export default function Home() {
               <button
                 key={b.name}
                 onClick={navigateTo("/showcase", { brand: b.filterVendor })}
-                className="relative bg-white hover:border-[#8cc63f] border border-gray-200/90 rounded-2xl p-4 sm:p-5 text-left transition-all flex flex-col justify-between shadow-xs hover:shadow-sm group cursor-pointer"
+                className="relative bg-white hover:border-[#8cc63f] active:scale-[0.98] border border-gray-200/90 rounded-2xl p-4 text-left transition-all flex flex-col justify-between shadow-2xs hover:shadow-xs group cursor-pointer touch-manipulation"
               >
                 {/* Бейдж количества справа сверху */}
-                <span className="absolute top-3 right-3 text-xs font-semibold text-gray-600 bg-gray-50 px-2 py-0.5 rounded-lg border border-gray-200/80 whitespace-nowrap shadow-2xs">
+                <span className="absolute top-2.5 right-2.5 text-[11px] font-semibold text-gray-600 bg-gray-50 px-2 py-0.5 rounded-md border border-gray-200/80 whitespace-nowrap shadow-2xs">
                   {b.badge}
                 </span>
 
-                {/* Контейнер логотипа — крупный, размер с весь квадрат */}
-                <div className="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl bg-gray-50/90 border border-gray-100 flex items-center justify-center p-2 mb-3 group-hover:scale-105 transition-transform shadow-2xs">
+                {/* Контейнер логотипа */}
+                <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-gray-50/90 border border-gray-100 flex items-center justify-center p-2 mb-2.5 group-hover:scale-105 transition-transform shadow-2xs">
                   <img
                     src={b.logo}
                     alt={b.name}
@@ -618,10 +655,10 @@ export default function Home() {
                 </div>
 
                 <div>
-                  <span className="font-bold text-sm sm:text-base text-gray-900 block mb-0.5 group-hover:text-[#76aa34] transition-colors leading-tight">
+                  <span className="font-bold text-sm text-gray-900 block mb-0.5 group-hover:text-[#76aa34] transition-colors leading-tight">
                     {b.name}
                   </span>
-                  <span className="text-xs text-gray-500 block leading-snug whitespace-nowrap">
+                  <span className="text-[11px] text-gray-500 block leading-tight whitespace-nowrap">
                     {b.countText}
                   </span>
                 </div>
@@ -636,15 +673,15 @@ export default function Home() {
                 localStorage.removeItem("scrollToUsedCarId");
                 navigate("/ShowcaseUsed");
               }}
-              className="relative bg-white hover:border-orange-400 border border-gray-200/90 rounded-2xl p-4 sm:p-5 text-left transition-all flex flex-col justify-between shadow-xs hover:shadow-sm group cursor-pointer"
+              className="relative bg-white hover:border-orange-400 active:scale-[0.98] border border-gray-200/90 rounded-2xl p-4 text-left transition-all flex flex-col justify-between shadow-2xs hover:shadow-xs group cursor-pointer touch-manipulation"
             >
               {/* Бейдж количества справа сверху */}
-              <span className="absolute top-3 right-3 text-xs font-bold bg-orange-500 text-white px-2 py-0.5 rounded-lg shadow-xs whitespace-nowrap">
+              <span className="absolute top-2.5 right-2.5 text-[11px] font-bold bg-orange-500 text-white px-2 py-0.5 rounded-md shadow-2xs whitespace-nowrap">
                 {usedCount || "519"}
               </span>
 
               {/* Контейнер красивой иконки авто с пробегом */}
-              <div className="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl bg-orange-50/80 border border-orange-100 flex items-center justify-center p-2 mb-3 group-hover:scale-105 transition-transform shadow-2xs">
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-orange-50/80 border border-orange-100 flex items-center justify-center p-2 mb-2.5 group-hover:scale-105 transition-transform shadow-2xs">
                 <img
                   src="/logos/used.svg"
                   alt="С пробегом"
@@ -653,10 +690,10 @@ export default function Home() {
               </div>
 
               <div>
-                <span className="font-bold text-sm sm:text-base text-gray-900 block mb-0.5 group-hover:text-orange-600 transition-colors leading-tight">
+                <span className="font-bold text-sm text-gray-900 block mb-0.5 group-hover:text-orange-600 transition-colors leading-tight">
                   С пробегом
                 </span>
-                <span className="text-xs text-gray-500 block leading-snug whitespace-nowrap">
+                <span className="text-[11px] text-gray-500 block leading-tight whitespace-nowrap">
                   Проверено дилером
                 </span>
               </div>
@@ -673,41 +710,41 @@ export default function Home() {
                 navigate("/ServiceBooking");
               }
             }}
-            className="bg-white border border-gray-200/90 hover:border-[#8cc63f] rounded-2xl overflow-hidden shadow-xs hover:shadow-md transition-all duration-300 group cursor-pointer flex flex-col justify-between"
+            className="bg-white border border-gray-200/90 hover:border-[#8cc63f] active:scale-[0.99] rounded-2xl overflow-hidden shadow-2xs hover:shadow-md transition-all duration-200 group cursor-pointer flex flex-col justify-between touch-manipulation"
           >
             {/* Верхняя часть: Заголовок и бейдж */}
-            <div className="p-5 sm:p-6 pb-2.5 sm:pb-3">
-              <div className="flex items-center justify-between gap-2 mb-2.5">
-                <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-[#f0f7e8] border border-[#8cc63f]/30 text-[#76aa34] text-xs font-semibold">
+            <div className="p-4 sm:p-5 pb-2">
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <div className="inline-flex items-center space-x-1.5 px-2.5 py-0.5 rounded-full bg-[#f0f7e8] border border-[#8cc63f]/30 text-[#76aa34] text-[11px] font-semibold">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#8cc63f] animate-pulse shrink-0" />
-                  <span>Официальный сервис • Онлайн 24/7</span>
+                  <span>Официальный сервис 24/7</span>
                 </div>
-                <span className="text-xs font-medium text-gray-400 bg-gray-50 px-2.5 py-1 rounded-md border border-gray-100 hidden sm:inline-block">
-                  Дилерская гарантия
+                <span className="text-[11px] font-medium text-gray-400 bg-gray-50 px-2 py-0.5 rounded-md border border-gray-100">
+                  Гарантия
                 </span>
               </div>
-              <h3 className="font-extrabold text-lg sm:text-xl text-gray-900 leading-snug">
+              <h3 className="font-extrabold text-base sm:text-lg text-gray-900 leading-snug">
                 Запись на сервис онлайн
               </h3>
-              <p className="text-xs sm:text-sm text-gray-500 mt-1 leading-relaxed">
+              <p className="text-xs text-gray-500 mt-0.5 leading-normal">
                 ТО, диагностика, гарантийный ремонт и шиномонтаж без очередей
               </p>
             </div>
 
             {/* Центральная часть: Иллюстрация service.png */}
-            <div className="w-full px-4 sm:px-6 py-3 flex items-center justify-center bg-gradient-to-b from-white via-gray-50/40 to-white">
+            <div className="w-full px-4 py-2 flex items-center justify-center bg-gradient-to-b from-white via-gray-50/40 to-white">
               <img
                 src="/service.png"
                 alt="Запись на сервис Прагматика"
-                className="w-full h-auto max-h-48 sm:max-h-56 object-contain group-hover:scale-102 transition-transform duration-300"
+                className="w-full h-auto max-h-40 sm:max-h-48 object-contain group-hover:scale-102 transition-transform duration-200"
               />
             </div>
 
             {/* Нижняя часть: Кнопка действия во всю ширину */}
-            <div className="p-5 sm:p-6 pt-2.5 sm:pt-3">
-              <div className="w-full bg-[#8cc63f] hover:bg-[#7ab82c] text-white font-bold py-3.5 sm:py-4 px-5 rounded-xl transition-colors flex items-center justify-center space-x-2 text-sm sm:text-base shadow-xs group-hover:shadow-sm">
+            <div className="p-4 sm:p-5 pt-2">
+              <div className="w-full bg-[#8cc63f] hover:bg-[#7ab82c] active:scale-[0.98] text-white font-bold py-3 px-4 rounded-xl transition-all flex items-center justify-center space-x-2 text-sm shadow-xs">
                 <span>Записаться на сервис онлайн</span>
-                <ArrowRight size={17} className="group-hover:translate-x-1 transition-transform" />
+                <ArrowRight size={16} className="group-hover:translate-x-0.5 transition-transform" />
               </div>
             </div>
           </div>
@@ -887,13 +924,13 @@ export default function Home() {
             </span>
           </div>
 
-          <div className="grid grid-cols-2 gap-3.5 sm:gap-4.5">
+          <div className="grid grid-cols-2 gap-3 sm:gap-3.5">
             {/* Шины и диски */}
             <button
               onClick={navigateTo("/tires-wheels")}
-              className="bg-white border border-gray-200/90 hover:border-[#8cc63f] rounded-2xl p-5 sm:p-6 text-left transition-all flex flex-col justify-between shadow-xs hover:shadow-sm group cursor-pointer"
+              className="bg-white border border-gray-200/90 hover:border-[#8cc63f] active:scale-[0.98] rounded-2xl p-4 text-left transition-all flex flex-col justify-between shadow-2xs hover:shadow-xs group cursor-pointer touch-manipulation"
             >
-              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-[#f4f9ed] flex items-center justify-center p-2 mb-4 group-hover:scale-105 transition-all shadow-xs">
+              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-[#f4f9ed] flex items-center justify-center p-2 mb-3 group-hover:scale-105 transition-all shadow-2xs">
                 <img
                   src="/icons/tires.png"
                   alt="Шины и диски"
@@ -901,11 +938,11 @@ export default function Home() {
                 />
               </div>
               <div>
-                <span className="font-bold text-base sm:text-lg text-gray-900 block mb-1.5 group-hover:text-[#76aa34] transition-colors leading-snug">
+                <span className="font-bold text-sm sm:text-base text-gray-900 block mb-1 group-hover:text-[#76aa34] transition-colors leading-tight">
                   Шины и диски
                 </span>
-                <span className="text-xs sm:text-sm text-gray-500 block leading-relaxed">
-                  Шиномонтаж и сезонное хранение
+                <span className="text-[11px] sm:text-xs text-gray-500 block leading-tight">
+                  Шиномонтаж и хранение
                 </span>
               </div>
             </button>
@@ -913,9 +950,9 @@ export default function Home() {
             {/* Акции и скидки */}
             <button
               onClick={navigateTo("/offers")}
-              className="bg-white border border-gray-200/90 hover:border-orange-300 rounded-2xl p-5 sm:p-6 text-left transition-all flex flex-col justify-between shadow-xs hover:shadow-sm group cursor-pointer"
+              className="bg-white border border-gray-200/90 hover:border-orange-300 active:scale-[0.98] rounded-2xl p-4 text-left transition-all flex flex-col justify-between shadow-2xs hover:shadow-xs group cursor-pointer touch-manipulation"
             >
-              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-[#fff7ed] flex items-center justify-center p-2 mb-4 group-hover:scale-105 transition-all shadow-xs">
+              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-[#fff7ed] flex items-center justify-center p-2 mb-3 group-hover:scale-105 transition-all shadow-2xs">
                 <img
                   src="/icons/offers.png"
                   alt="Акции и выгода"
@@ -923,11 +960,11 @@ export default function Home() {
                 />
               </div>
               <div>
-                <span className="font-bold text-base sm:text-lg text-gray-900 block mb-1.5 group-hover:text-orange-600 transition-colors leading-snug">
+                <span className="font-bold text-sm sm:text-base text-gray-900 block mb-1 group-hover:text-orange-600 transition-colors leading-tight">
                   Акции и выгода
                 </span>
-                <span className="text-xs sm:text-sm text-gray-500 block leading-relaxed">
-                  Специальные условия месяца
+                <span className="text-[11px] sm:text-xs text-gray-500 block leading-tight">
+                  Специальные условия
                 </span>
               </div>
             </button>
@@ -935,9 +972,9 @@ export default function Home() {
             {/* Новости Прагматика */}
             <button
               onClick={navigateTo("/NewsList")}
-              className="bg-white border border-gray-200/90 hover:border-blue-300 rounded-2xl p-5 sm:p-6 text-left transition-all flex flex-col justify-between shadow-xs hover:shadow-sm group cursor-pointer"
+              className="bg-white border border-gray-200/90 hover:border-blue-300 active:scale-[0.98] rounded-2xl p-4 text-left transition-all flex flex-col justify-between shadow-2xs hover:shadow-xs group cursor-pointer touch-manipulation"
             >
-              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-[#f0f7ff] flex items-center justify-center p-2 mb-4 group-hover:scale-105 transition-all shadow-xs">
+              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-[#f0f7ff] flex items-center justify-center p-2 mb-3 group-hover:scale-105 transition-all shadow-2xs">
                 <img
                   src="/icons/news.png"
                   alt="Новости"
@@ -945,11 +982,11 @@ export default function Home() {
                 />
               </div>
               <div>
-                <span className="font-bold text-base sm:text-lg text-gray-900 block mb-1.5 group-hover:text-blue-600 transition-colors leading-snug">
+                <span className="font-bold text-sm sm:text-base text-gray-900 block mb-1 group-hover:text-blue-600 transition-colors leading-tight">
                   Новости
                 </span>
-                <span className="text-xs sm:text-sm text-gray-500 block leading-relaxed">
-                  События и обзоры новинок
+                <span className="text-[11px] sm:text-xs text-gray-500 block leading-tight">
+                  События и новинки
                 </span>
               </div>
             </button>
@@ -957,9 +994,9 @@ export default function Home() {
             {/* Бонусный счёт */}
             <button
               onClick={navigateTo("/BonusPage")}
-              className="bg-white border border-gray-200/90 hover:border-[#8cc63f] rounded-2xl p-5 sm:p-6 text-left transition-all flex flex-col justify-between shadow-xs hover:shadow-sm group cursor-pointer"
+              className="bg-white border border-gray-200/90 hover:border-[#8cc63f] active:scale-[0.98] rounded-2xl p-4 text-left transition-all flex flex-col justify-between shadow-2xs hover:shadow-xs group cursor-pointer touch-manipulation"
             >
-              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-[#fdf8ec] flex items-center justify-center p-2 mb-4 group-hover:scale-105 transition-all shadow-xs">
+              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-[#fdf8ec] flex items-center justify-center p-2 mb-3 group-hover:scale-105 transition-all shadow-2xs">
                 <img
                   src="/icons/bonus.png"
                   alt="Бонусный клуб"
@@ -967,11 +1004,11 @@ export default function Home() {
                 />
               </div>
               <div>
-                <span className="font-bold text-base sm:text-lg text-gray-900 block mb-1.5 group-hover:text-[#76aa34] transition-colors leading-snug">
+                <span className="font-bold text-sm sm:text-base text-gray-900 block mb-1 group-hover:text-[#76aa34] transition-colors leading-tight">
                   Бонусный клуб
                 </span>
-                <span className="text-xs sm:text-sm text-gray-500 block leading-relaxed">
-                  Правила начисления баллов
+                <span className="text-[11px] sm:text-xs text-gray-500 block leading-tight">
+                  Правила начисления
                 </span>
               </div>
             </button>

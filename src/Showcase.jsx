@@ -71,6 +71,7 @@ const normalizeBrandKey = (brand) => {
   if (b.includes("belgee")) return "belgee";
   if (b.includes("changan")) return "changan";
   if (b.includes("lada")) return "lada";
+  if (b.includes("evolute")) return "evolute";
   if (b.includes("xcite")) return "xcite";
 
   return b;
@@ -79,11 +80,15 @@ const normalizeBrandKey = (brand) => {
 
 const dealerNameMap = {
   "Прагматика Лада Парнас|lada": "LADA Парнас",
+  "Прагматика Evolute Парнас|evolute": "Evolute Парнас",
+  "Прагматика EVOLUTE Парнас|evolute": "Evolute Парнас",
   "Прагматика XCITE Парнас|xcite": "XCITE Парнас",
   "Прагматика Василеостровский|lada": "LADA Василеостровский",
+  "Прагматика Василеостровский Evolute|evolute": "Evolute Василеостровский",
   "Прагматика Василеостровский Xcite|xcite": "XCITE Василеостровский",
   "Changan Центр Прагматика|changan": "Changan Купчино",
   "Прагматика LADA Купчино|lada": "LADA Купчино",
+  "ПРАГМАТИКА ЛАДА Evolute|evolute": "Evolute Купчино",
   "ПРАГМАТИКА МУРМАНСК  Lada (ВАЗ)|lada": "LADA Мурманск",
   "Псков-Лада Lada (ВАЗ)|lada": "LADA Псков",
   "Прагматика Geely Василеостровский|geely": "Geely Василеостровский",
@@ -93,6 +98,12 @@ const dealerNameMap = {
   "Прагматика LADA Великие Луки|lada": "LADA Великие Луки",
   "ПРАГМАТИКА ЛАДА Xcite|xcite": "XCITE Купчино",
   "Прагматика LADA Мончегорск|lada": "LADA Мончегорск",
+  "Петрозаводск-Лада Lada (ВАЗ)|evolute": "Evolute Петрозаводск",
+  "Прагматика LADA Великий Новгород|evolute": "Evolute Великий Новгород",
+  "Прагматика LADA Великие Луки|evolute": "Evolute Великие Луки",
+  "Прагматика LADA Мончегорск|evolute": "Evolute Мончегорск",
+  "ПРАГМАТИКА МУРМАНСК  Lada (ВАЗ)|evolute": "Evolute Мурманск",
+  "Псков-Лада Lada (ВАЗ)|evolute": "Evolute Псков",
 	"Петрозаводск-Лада Lada (ВАЗ)|xcite": "XCITE Петрозаводск",
   "Прагматика LADA Великий Новгород|xcite": "XCITE Великий Новгород",
   "Прагматика LADA Великие Луки|xcite": "XCITE Великие Луки",
@@ -287,13 +298,35 @@ return {
   .filter(Boolean); // 👈 обязательно!
 
         const prices = allCars.map((c) => c.price);
-        const min = Math.min(...prices);
-        const max = Math.max(...prices);
+        const min = prices.length ? Math.min(...prices) : 0;
+        const max = prices.length ? Math.max(...prices) : 9999999;
 
         setCars(allCars);
-        setFiltered(allCars);
         setPriceRange([min, max]);
-        setFilters((prev) => ({ ...prev, price: [min, max] }));
+
+        // Находим точное совпадение вендора из фида, если был передан initialBrand
+        if (initialBrand) {
+          const matchedVendor = allCars.find(
+            (c) =>
+              c.vendor?.toLowerCase() === initialBrand.toLowerCase() ||
+              c.vendor?.toLowerCase().includes(initialBrand.toLowerCase()) ||
+              initialBrand.toLowerCase().includes(c.vendor?.toLowerCase())
+          )?.vendor;
+
+          const vendorToSet = matchedVendor || initialBrand;
+          setFilters((prev) => ({
+            ...prev,
+            vendor: [vendorToSet],
+            price: [min, max],
+          }));
+          setOpenFilters((prev) => ({
+            ...prev,
+            vendor: true,
+          }));
+        } else {
+          setFilters((prev) => ({ ...prev, price: [min, max] }));
+        }
+
         setLoading(false);
       } catch (e) {
         console.error("Ошибка загрузки фида", e);
@@ -303,7 +336,7 @@ return {
     };
 
     fetchFeeds();
-}, [hotVins]);
+}, [hotVins, initialBrand]);
  
 
   /* =======================
@@ -311,8 +344,17 @@ return {
   ======================= */
   useEffect(() => {
     const result = cars.filter((car) => {
+      const vendorMatch =
+        filters.vendor.length === 0 ||
+        filters.vendor.some(
+          (fv) =>
+            fv.toLowerCase() === car.vendor?.toLowerCase() ||
+            car.vendor?.toLowerCase().includes(fv.toLowerCase()) ||
+            fv.toLowerCase().includes(car.vendor?.toLowerCase())
+        );
+
       return (
-        (filters.vendor.length === 0 || filters.vendor.includes(car.vendor)) &&
+        vendorMatch &&
         (filters.model.length === 0 || filters.model.includes(car.model)) &&
         (filters.color.length === 0 || filters.color.includes(car.color)) &&
         (filters.body.length === 0 || filters.body.includes(car.body)) &&
@@ -330,7 +372,12 @@ return {
     let carsToFilter = cars;
     if (filters.vendor.length)
       carsToFilter = carsToFilter.filter((c) =>
-        filters.vendor.includes(c.vendor)
+        filters.vendor.some(
+          (fv) =>
+            fv.toLowerCase() === c.vendor?.toLowerCase() ||
+            c.vendor?.toLowerCase().includes(fv.toLowerCase()) ||
+            fv.toLowerCase().includes(c.vendor?.toLowerCase())
+        )
       );
     if (filters.model.length)
       carsToFilter = carsToFilter.filter((c) =>
@@ -338,12 +385,12 @@ return {
       );
 
     setFilteredOptions({
-      vendors: [...new Set(cars.map((c) => c.vendor))],
-      models: [...new Set(carsToFilter.map((c) => c.model))],
-      colors: [...new Set(cars.map((c) => c.color))],
-      bodies: [...new Set(cars.map((c) => c.body))],
-      transmissions: [...new Set(cars.map((c) => c.transmission))],
-      dealers: [...new Set(cars.map((c) => c.dealer))],
+      vendors: [...new Set(cars.map((c) => c.vendor))].filter(Boolean),
+      models: [...new Set(carsToFilter.map((c) => c.model))].filter(Boolean),
+      colors: [...new Set(cars.map((c) => c.color))].filter(Boolean),
+      bodies: [...new Set(cars.map((c) => c.body))].filter(Boolean),
+      transmissions: [...new Set(cars.map((c) => c.transmission))].filter(Boolean),
+      dealers: [...new Set(cars.map((c) => c.dealer))].filter(Boolean),
     });
   }, [filters, cars]);
 
@@ -638,60 +685,73 @@ return {
 </div>
 
             {/* Список автомобилей */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-5">
               {filtered.slice(0, visibleCount).map((car) => (
-  <div
-    key={car.id} onClick={() => {
-    navigate("/NewCarDetails", { state: { car } });
-  }}
-   className="bg-white rounded-lg shadow-lg overflow-visible"
-  >
-
-					  <div className="relative">
-                     {car.isHot && (
-  <img
-    src="/fire-offer.png"
-    alt="Горячее предложение"
-    className="absolute -top-6 -left-6 w-16 h-16 z-30 drop-shadow-xl rotate-[-10deg] transition-transform duration-300 hover:scale-110"
-  />
-)}
-				  
-				   <div className="overflow-hidden rounded-t-lg">
-				  <img
-                    src={car.pictures[0]}
-                    alt={car.model}
-                    className="w-full h-48 object-cover"
-                    onLoad={() => setLoadingImages(false)}
-                  />
-					     </div>
-                  <div className="p-4">
-                    <div className="text-xl font-semibold text-gray-900 mb-2">
-                      {car.vendor} {car.model}
-                    </div>
-                    <div className="text-[#8cc63f] font-bold text-xl">
-                      {car.price.toLocaleString()} ₽
-                    </div>
-                    {car.oldPrice && (
-                      <div className="text-sm line-through text-gray-500">
-                        {parseInt(car.oldPrice).toLocaleString()} ₽
-                      </div>
+                <div
+                  key={car.id}
+                  onClick={() => {
+                    navigate("/NewCarDetails", { state: { car } });
+                  }}
+                  className="bg-white rounded-2xl border border-gray-200/90 shadow-2xs hover:shadow-md active:scale-[0.99] transition-all overflow-hidden flex flex-col justify-between cursor-pointer group touch-manipulation"
+                >
+                  <div className="relative">
+                    {car.isHot && (
+                      <img
+                        src="/fire-offer.png"
+                        alt="Горячее предложение"
+                        className="absolute top-2.5 left-2.5 w-12 h-12 z-30 drop-shadow-md rotate-[-10deg]"
+                      />
                     )}
-                    <div className="text-sm text-gray-600 mt-2">
-                      {car.params.filter((p) => ["Кузов", "Цвет", "Трансмиссия", "Двигатель"].includes(p.name)).map((p) => `${p.name}: ${p.value}`).join(" · ")}
+
+                    <div className="overflow-hidden bg-gray-100 aspect-[16/10]">
+                      <img
+                        src={car.pictures[0]}
+                        alt={car.model}
+                        className="w-full h-full object-cover group-hover:scale-103 transition-transform duration-300"
+                        onLoad={() => setLoadingImages(false)}
+                      />
                     </div>
-					 </div>
-					 </div>
+
+                    <div className="p-4">
+                      <div className="text-base sm:text-lg font-bold text-gray-900 mb-1 group-hover:text-[#76aa34] transition-colors leading-tight">
+                        {car.vendor} {car.model}
+                      </div>
+
+                      <div className="flex items-baseline space-x-2 mb-2">
+                        <span className="text-[#76aa34] font-extrabold text-xl tracking-tight">
+                          {car.price.toLocaleString("ru-RU")} ₽
+                        </span>
+                        {car.oldPrice && (
+                          <span className="text-xs line-through text-gray-400">
+                            {parseInt(car.oldPrice).toLocaleString("ru-RU")} ₽
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="text-xs text-gray-500 leading-relaxed line-clamp-2">
+                        {car.params
+                          .filter((p) =>
+                            ["Кузов", "Цвет", "Трансмиссия", "Двигатель"].includes(p.name)
+                          )
+                          .map((p) => `${p.name}: ${p.value}`)
+                          .join(" · ")}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-4 pt-0">
                     <button
-    className="mt-4 w-full py-2 px-4 bg-[#8cc63f] text-white rounded-lg hover:bg-[#7ab82c]"
-    onClick={(e) => {
-      e.stopPropagation();
-      setModalCar(car);
-    }}
-  >
+                      type="button"
+                      className="w-full py-2.5 px-4 bg-[#8cc63f] hover:bg-[#7ab82c] active:scale-[0.98] text-white font-bold rounded-xl transition-all text-sm shadow-2xs"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setModalCar(car);
+                      }}
+                    >
                       Забронировать
                     </button>
                   </div>
-                
+                </div>
               ))}
             </div>
 
@@ -699,10 +759,10 @@ return {
             {visibleCount < filtered.length && (
               <div className="text-center mt-6 mb-24">
                 <button
-                  className="px-6 py-2 bg-[#8cc63f] text-white rounded hover:bg-[#7ab82c]"
+                  className="px-6 py-3 bg-[#8cc63f] hover:bg-[#7ab82c] active:scale-98 text-white font-bold rounded-xl shadow-xs transition-all text-sm"
                   onClick={() => setVisibleCount((prev) => prev + 24)}
                 >
-                  Показать еще
+                  Показать еще ({filtered.length - visibleCount})
                 </button>
               </div>
             )}

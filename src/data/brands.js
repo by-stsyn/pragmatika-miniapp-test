@@ -27,8 +27,8 @@ export const BRANDS_MODELS = {
   "X50", "X70", "X70 FL", "X70 Pro", "X90", "Cool", "Atlas", "Atlas Pro"
 ],
   Knewstar: ["001"],
-  Хcite: ["X-Cross 7", "X-Cross 8"],
-   Kaiyi: ["E5", "X3"],
+  Evolute: ["i-PRO", "i-JOY", "i-SKY", "i-SPACE", "i-VAN", "i-JET"],
+  Kaiyi: ["E5", "X3"],
   Audi: [
   "A1", "A3", "A4", "A5", "A6", "A7", "A8",
   "Q2", "Q3", "Q4 e-tron", "Q5", "Q6 e-tron", "Q7", "Q8",

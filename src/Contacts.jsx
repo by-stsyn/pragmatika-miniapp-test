@@ -4,6 +4,7 @@ import { Phone, MapPin, ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import BottomNav from "/src/components/BottomNav";
 import Preloader from "/src/components/Preloader";
+import { DEFAULT_DEALERS } from "/src/data/dealers";
 
 const API_URL = "https://sheetdb.io/api/v1/mtp1z8i362ul2";
 
@@ -91,8 +92,8 @@ function LazyMap({ location, id }) {
 
 export default function Contacts() {
   const navigate = useNavigate();
-  const [locations, setLocations] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [locations, setLocations] = useState(DEFAULT_DEALERS);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
 
   useEffect(() => {
@@ -110,19 +111,15 @@ export default function Contacts() {
 
         const data = await response.json();
 
-        if (!Array.isArray(data)) {
-          throw new Error("Некорректный формат ответа API");
+        if (Array.isArray(data) && data.length > 0) {
+          const valid = data.filter((loc) => loc && typeof loc === "object" && loc.diler);
+          if (valid.length > 0) {
+            setLocations(valid);
+          }
         }
-
-        setLocations(data.filter((loc) => loc && typeof loc === "object"));
       } catch (err) {
         if (err.name !== "AbortError") {
-          console.error("Ошибка загрузки локаций:", err);
-          setError(true);
-        }
-      } finally {
-        if (!controller.signal.aborted) {
-          setLoading(false);
+          console.warn("Используем локальный справочник дилеров из-за лимита API:", err.message);
         }
       }
     }

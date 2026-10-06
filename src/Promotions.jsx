@@ -42,13 +42,14 @@ const [formData, setFormData] = useState({ name: "", phone: "" });
 
   useEffect(() => {
     fetch(API_URL)
-      .then((res) => res.json())
+      .then((res) => (res.ok ? res.json() : []))
       .then((data) => {
-        setPromos(data);
+        setPromos(Array.isArray(data) ? data : []);
         setLoading(false);
       })
       .catch((err) => {
         console.error("Ошибка загрузки акций:", err);
+        setPromos([]);
         setLoading(false);
       });
   }, []);

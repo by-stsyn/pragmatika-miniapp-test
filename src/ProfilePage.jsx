@@ -103,7 +103,7 @@ const [insuranceSending, setInsuranceSending] = useState(false);
   useEffect(() => {
     if (!userId) return;
 
-    fetch(`${BASE_URL}?path=api/profile/cars&telegramId=${userId}`)
+    fetch(`${BASE_URL}?path=api/profile/cars&${idParam}=${userId}`)
       .then(res => res.ok && res.json())
       .then(data => setCars(data?.cars || []));
   }, [userId]);

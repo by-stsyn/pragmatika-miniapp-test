@@ -10,9 +10,16 @@ export default function BottomNav() {
   const [phone, setPhone] = useState("");
   const [name, setName] = useState("");
   const [status, setStatus] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!phone || phone.replace(/\D/g, "").length < 11) {
+      setStatus("Введите корректный номер телефона");
+      return;
+    }
+
+    setIsSubmitting(true);
     setStatus("Отправка...");
 
     try {
@@ -21,85 +28,100 @@ export default function BottomNav() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           phone,
-          name,
+          name: name || "Клиент",
+          comment: "Заказ звонка из нижнего меню",
           callUrl: window.location.href,
         }),
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
 
       if (res.ok) {
-        setStatus("Ваша заявка принята! Мы перезвоним.");
+        setStatus("Заявка принята! Мы скоро перезвоним.");
         setPhone("");
         setName("");
-        setTimeout(() => setShowCallback(false), 1500);
+        setTimeout(() => {
+          setShowCallback(false);
+          setStatus("");
+        }, 2000);
       } else {
-        setStatus("Ошибка: " + JSON.stringify(data.details));
+        setStatus("Ошибка: " + (data?.details?.message || "Попробуйте позже"));
       }
     } catch (err) {
-      setStatus("Ошибка сервера");
+      setStatus("Ошибка соединения. Попробуйте снова.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const navItems = [
     {
+      id: "home",
       label: "Главная",
       icon: Home,
       path: "/",
       isActive: location.pathname === "/",
     },
     {
+      id: "offers",
       label: "Акции",
       icon: Gift,
       path: "/offers",
-      isActive: location.pathname === "/offers" || location.pathname.startsWith("/offer/"),
+      isActive:
+        location.pathname === "/offers" ||
+        location.pathname.startsWith("/offer/"),
     },
     {
+      id: "call",
       label: "Звонок",
       icon: Phone,
       onClick: () => setShowCallback(true),
       isAction: true,
     },
     {
+      id: "contacts",
       label: "Контакты",
       icon: MapPin,
       path: "/contacts",
       isActive: location.pathname === "/contacts",
     },
     {
+      id: "profile",
       label: "Кабинет",
       icon: User,
       path: "/ProfilePage",
-      isActive: location.pathname === "/ProfilePage" || location.pathname === "/BonusPage",
+      isActive:
+        location.pathname === "/ProfilePage" ||
+        location.pathname === "/BonusPage",
     },
   ];
 
   return (
     <>
-      {/* iOS Liquid Glass Floating Dock */}
-      <div className="fixed bottom-3 sm:bottom-4 inset-x-3 sm:inset-x-4 z-50 pointer-events-none flex justify-center">
+      {/* Floating Bottom Navigation Bar with stable 5-column layout */}
+      <div className="fixed bottom-3 sm:bottom-4 inset-x-0 z-50 pointer-events-none flex justify-center px-3 sm:px-4">
         <nav
           role="navigation"
           aria-label="Основное меню"
-          className="pointer-events-auto relative w-full max-w-sm sm:max-w-md bg-white/70 backdrop-blur-2xl backdrop-saturate-180 border border-white/60 shadow-[0_12px_36px_rgba(0,0,0,0.12),0_2px_8px_rgba(0,0,0,0.04)] rounded-full px-2 py-1.5 flex items-center justify-between ring-1 ring-black/5"
+          className="pointer-events-auto relative w-full max-w-sm sm:max-w-md bg-white/90 backdrop-blur-xl border border-gray-200/80 shadow-[0_10px_30px_rgba(0,0,0,0.12),0_1px_3px_rgba(0,0,0,0.06)] rounded-full px-1.5 py-1.5 grid grid-cols-5 items-center ring-1 ring-black/5"
         >
-          {navItems.map((item, idx) => {
+          {navItems.map((item) => {
             const Icon = item.icon;
             const active = item.isActive;
 
             if (item.isAction) {
               return (
                 <button
-                  key={idx}
+                  key={item.id}
                   onClick={item.onClick}
                   type="button"
                   aria-label={item.label}
-                  className="flex flex-col items-center justify-center py-0.5 px-2 rounded-full text-white transition-all active:scale-95 group cursor-pointer"
+                  className="w-full flex flex-col items-center justify-center py-0.5 px-0.5 group cursor-pointer select-none transition-transform active:scale-95"
                 >
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#8cc63f] to-[#76aa34] shadow-md shadow-[#8cc63f]/30 flex items-center justify-center text-white transition-transform group-hover:scale-105">
-                    <Icon size={18} strokeWidth={2.4} />
+                  <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-[#7ab82c] to-[#8cc63f] shadow-sm shadow-[#8cc63f]/40 flex items-center justify-center text-white transition-transform group-hover:scale-105 shrink-0">
+                    <Icon size={17} strokeWidth={2.4} />
                   </div>
-                  <span className="text-[10px] font-semibold text-gray-700 mt-0.5 leading-none">
+                  <span className="text-[10px] font-semibold text-gray-700 mt-1 leading-tight tracking-tight whitespace-nowrap text-center">
                     {item.label}
                   </span>
                 </button>
@@ -108,26 +130,24 @@ export default function BottomNav() {
 
             return (
               <button
-                key={idx}
+                key={item.id}
                 onClick={() => navigate(item.path)}
                 type="button"
                 aria-label={item.label}
-                className={`flex-1 flex flex-col items-center justify-center py-1 px-1 rounded-full transition-colors cursor-pointer ${
-                  active
-                    ? "text-[#76aa34] font-bold"
-                    : "text-gray-500 hover:text-gray-900 font-medium"
-                }`}
+                className="w-full flex flex-col items-center justify-center py-1 px-0.5 cursor-pointer select-none transition-transform active:scale-95"
               >
                 <div
-                  className={`w-8 h-7 flex items-center justify-center rounded-full transition-colors ${
-                    active ? "bg-white/80 shadow-2xs text-[#76aa34]" : "text-gray-500"
+                  className={`w-9 h-8 flex items-center justify-center rounded-full transition-colors shrink-0 ${
+                    active
+                      ? "bg-[#8cc63f]/15 text-[#6fa02f]"
+                      : "text-gray-500 hover:text-gray-900"
                   }`}
                 >
                   <Icon size={19} strokeWidth={active ? 2.5 : 2} />
                 </div>
                 <span
-                  className={`text-[10px] mt-0.5 leading-none ${
-                    active ? "text-[#76aa34] font-bold" : "text-gray-500"
+                  className={`text-[10px] font-semibold mt-0.5 leading-tight tracking-tight whitespace-nowrap text-center ${
+                    active ? "text-[#6fa02f]" : "text-gray-500"
                   }`}
                 >
                   {item.label}
@@ -197,15 +217,16 @@ export default function BottomNav() {
 
               <button
                 type="submit"
-                className="mt-1 w-full bg-[#8cc63f] hover:bg-[#7bb531] text-white font-bold py-3 rounded-xl shadow-md transition-all active:scale-98 text-sm"
+                disabled={isSubmitting}
+                className="mt-1 w-full bg-[#8cc63f] hover:bg-[#7bb531] text-white font-bold py-3 rounded-xl shadow-md transition-all active:scale-98 text-sm cursor-pointer disabled:opacity-50"
               >
-                Жду звонка
+                {isSubmitting ? "Отправка..." : "Жду звонка"}
               </button>
 
               {status && (
                 <div
                   className={`text-xs mt-1 p-2.5 rounded-lg text-center font-medium ${
-                    status.startsWith("Ваша заявка")
+                    status.startsWith("Заявка")
                       ? "bg-green-50 text-green-700"
                       : "bg-red-50 text-red-600"
                   }`}

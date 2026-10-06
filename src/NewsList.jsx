@@ -11,15 +11,19 @@ export default function NewsList() {
 
   useEffect(() => {
     fetch("/api/fetch-news")
-      .then((res) => res.json())
+      .then((res) => (res.ok ? res.json() : []))
       .then((data) => {
+        const items = Array.isArray(data) ? data : [];
         // Сортировка по дате (новые сверху)
-        const sorted = data.sort(
+        const sorted = items.sort(
           (a, b) => new Date(b.pubDate || b.date) - new Date(a.pubDate || a.date)
         );
         setNews(sorted);
       })
-      .catch((err) => console.error("Ошибка загрузки новостей:", err))
+      .catch((err) => {
+        console.error("Ошибка загрузки новостей:", err);
+        setNews([]);
+      })
       .finally(() => setLoading(false));
   }, []);
 
