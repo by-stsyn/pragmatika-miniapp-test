@@ -1,0 +1,102 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  margin: 0;
+  font-family: sans-serif;
+  background-color: #f7f7f7;
+}
+
+.col-span-2 {padding: 0px 15px 0px 15px;}
+
+.filter-container {
+ 
+  flex-wrap: wrap;
+  gap: 0px;
+  margin: 20px 0;
+}
+
+.filter {
+  position: relative;
+  display: inline-block;
+  border: 2px solid transparent;
+  border-radius: 5px;
+  padding: 5px 5px;
+  font-size: 16px;
+  transition: border-color 0.3s ease;
+}
+
+.filter h3{
+  border-radius: 9999px;
+    padding: 5px 10px 5px 15px;
+    background: #8cc63f;
+    color: white;
+  font-size: 100%;
+}
+
+.filter label{
+  
+    padding-left: 15px;
+  
+}
+
+.filter select {
+  width: 100%;
+  padding: 5px;
+  font-size: 14px;
+  border: none;
+  border-radius: 5px;
+  background-color: #f1f1f1;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+}
+
+.filter-arrow {
+  font-size: 18px;
+  color: #fff;
+  transition: transform 0.3s ease;
+  margin-left: 10px;
+}
+
+.filter-arrow.active {
+  transform: rotate(180deg); /* Поворачиваем стрелку на 180 градусов */
+}
+
+.filter select:focus {
+  outline: none;
+}
+
+.filter select:hover {
+  background-color: #e0e0e0;
+}
+
+.swiper-pagination {
+  display: flex;
+  justify-content: center;
+  overflow: hidden;
+  max-width: 120px; /* ограничение ширины, чтобы не разъезжались */
+  margin: 0 auto;
+}
+
+.swiper-pagination-bullet {
+  opacity: 0.5;
+  transition: all 0.3s;
+  flex-shrink: 0;
+}
+
+.swiper-pagination-bullet-active {
+  opacity: 1 !important;
+  transform: scale(1.2);
+}
+
+/* ---------- Tires & Wheels ---------- */
+.tw-page{min-height:100vh;background:#f7f7f7;padding:16px 15px 30px;box-sizing:border-box;color:#202020}
+.tw-header{display:flex;align-items:center;gap:12px;margin:4px 0 18px}.tw-header h1{font-size:23px;margin:0;font-weight:700}.tw-header p{margin:3px 0 0;color:#777;font-size:13px}
+.tw-back{width:42px;height:42px;border:0;border-radius:12px;background:#fff;display:grid;place-items:center;color:#333;cursor:pointer}
+.tw-tabs{display:flex;background:#e9e9e9;border-radius:13px;padding:4px;margin-bottom:16px}.tw-tabs button{flex:1;border:0;background:transparent;padding:11px 8px;border-radius:10px;font-size:15px;font-weight:600}.tw-tabs button.active{background:#fff;box-shadow:0 1px 5px rgba(0,0,0,.09);color:#6c9d2f}
+.tw-panel,.tw-card,.tw-hint,.tw-state,.tw-empty,.tw-error{background:#fff;border-radius:16px;box-sizing:border-box}.tw-panel{padding:17px;margin-bottom:18px}.tw-panel h2{font-size:18px;margin:0 0 16px}.tw-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.tw-field{display:flex;flex-direction:column;gap:6px;font-size:12px;color:#777}.tw-field select{width:100%;box-sizing:border-box;border:1px solid #ddd;border-radius:10px;padding:11px 10px;background:#fafafa;font-size:15px;color:#222}.tw-search{margin-top:16px;width:100%;border:0;border-radius:12px;padding:13px;background:#8cc63f;color:#fff;font-size:16px;font-weight:700;display:flex;justify-content:center;align-items:center;gap:8px}.tw-search:disabled{opacity:.7}
+.tw-state,.tw-empty,.tw-error{padding:30px 20px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:9px;color:#666}.tw-error b{color:#b33939}.tw-error button{border:0;border-radius:9px;padding:9px 16px;background:#8cc63f;color:#fff}.tw-hint{padding:20px;display:flex;gap:12px;align-items:center;color:#666}.tw-hint svg{color:#8cc63f;flex:0 0 auto}.tw-hint b{color:#333}
+.tw-results-head{display:flex;justify-content:space-between;align-items:end;margin:4px 2px 12px}.tw-results-head span{font-size:11px;color:#999;text-align:right}.tw-card{display:flex;overflow:hidden;margin-bottom:12px}.tw-image,.tw-noimage{width:110px;min-height:145px;object-fit:contain;background:#fafafa;align-self:stretch}.tw-noimage{display:flex;align-items:center;justify-content:center;font-size:11px;color:#aaa;padding:8px;box-sizing:border-box;text-align:center}.tw-card-body{padding:14px;flex:1;min-width:0}.tw-brand{font-size:12px;color:#777;text-transform:uppercase}.tw-card h3{font-size:16px;margin:3px 0 6px;line-height:1.2}.tw-size{font-size:15px;font-weight:600}.tw-tag{display:inline-block;margin-top:6px;background:#f0f6e7;color:#66942c;padding:3px 7px;border-radius:6px;font-size:11px}.tw-price{display:flex;align-items:baseline;gap:8px;margin-top:12px}.tw-price span{font-size:12px;color:#888}.tw-price b{font-size:18px}.tw-stock{display:flex;align-items:center;gap:6px;margin-top:8px;font-size:13px}.tw-stock svg{color:#8cc63f}.tw-warehouses{margin-top:9px;font-size:12px}.tw-warehouses summary{cursor:pointer;color:#6c9d2f}.tw-warehouses div{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #eee;gap:10px}.tw-id{margin-top:8px;font-size:10px;color:#aaa}.tw-debug{text-align:center;color:#aaa;font-size:10px;margin-top:16px}.spin{animation:twspin 1s linear infinite}@keyframes twspin{to{transform:rotate(360deg)}}@media(max-width:360px){.tw-card{flex-direction:column}.tw-image,.tw-noimage{width:100%;height:160px}.tw-grid{grid-template-columns:1fr}}
