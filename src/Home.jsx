@@ -17,7 +17,9 @@ import {
   ArrowRight,
   CreditCard,
   CheckCircle2,
+  X,
 } from "lucide-react";
+import { formatRussianPhone } from "/src/utils/phone";
 
 const BASE_URL = "/api/render";
 
@@ -268,6 +270,55 @@ export default function Home() {
     [navigate]
   );
 
+  const [showCallback, setShowCallback] = useState(false);
+  const [callbackName, setCallbackName] = useState("");
+  const [callbackPhone, setCallbackPhone] = useState("");
+  const [callbackTopic, setCallbackTopic] = useState("Запись на сервис");
+  const [callbackStatus, setCallbackStatus] = useState("");
+  const [callbackSubmitting, setCallbackSubmitting] = useState(false);
+
+  const handleCallbackSubmit = async (e) => {
+    e.preventDefault();
+    if (!callbackPhone || callbackPhone.replace(/\D/g, "").length < 11) {
+      setCallbackStatus("Пожалуйста, введите полный номер телефона");
+      return;
+    }
+
+    setCallbackSubmitting(true);
+    setCallbackStatus("Отправка заявки...");
+
+    try {
+      const res = await fetch("/api/calltouch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          phone: callbackPhone,
+          name: callbackName || "Клиент",
+          comment: callbackTopic,
+          callUrl: window.location.href,
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (res.ok) {
+        setCallbackStatus("Ваша заявка принята! Мы перезвоним вам в течение 1 минуты.");
+        setCallbackPhone("");
+        setCallbackName("");
+        setTimeout(() => {
+          setShowCallback(false);
+          setCallbackStatus("");
+        }, 2200);
+      } else {
+        setCallbackStatus("Ошибка отправки: " + (data?.details?.message || "попробуйте позже"));
+      }
+    } catch (err) {
+      setCallbackStatus("Ошибка соединения. Пожалуйста, повторите.");
+    } finally {
+      setCallbackSubmitting(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#f8f9fa] text-[#1a202c] pb-[120px] font-sans antialiased selection:bg-[#8cc63f] selection:text-white">
       {/* ====================================================
@@ -313,7 +364,7 @@ export default function Home() {
           </button>
         </div>
 
-        {/* Индикатор сети и контактов (без привязки к одному городу) */}
+        {/* Индикатор сети и обратный звонок */}
         <div className="max-w-xl mx-auto mt-3 pt-2.5 border-t border-gray-100 flex items-center justify-between text-xs sm:text-sm text-gray-500">
           <div className="flex items-center space-x-1.5">
             <MapPin size={14} className="text-[#8cc63f] shrink-0" />
@@ -321,13 +372,16 @@ export default function Home() {
               Сеть дилерских центров
             </span>
           </div>
-          <a
-            href="tel:+78125651261"
-            className="flex items-center space-x-1 font-semibold text-gray-700 hover:text-[#8cc63f] transition-colors whitespace-nowrap ml-3"
+          <button
+            onClick={() => {
+              setCallbackTopic("Заказ звонка из шапки");
+              setShowCallback(true);
+            }}
+            className="flex items-center space-x-1.5 font-semibold text-gray-800 hover:text-[#76aa34] bg-[#f0f7e8] hover:bg-[#e4f2d3] px-3 py-1.5 rounded-xl border border-[#8cc63f]/30 transition-all text-xs whitespace-nowrap ml-3 cursor-pointer shadow-2xs"
           >
-            <Phone size={13} className="text-[#8cc63f] shrink-0" />
-            <span>+7 (812) 565-12-61</span>
-          </a>
+            <Phone size={12} className="text-[#76aa34] shrink-0" />
+            <span>Заказать звонок</span>
+          </button>
         </div>
       </header>
 
@@ -927,39 +981,152 @@ export default function Home() {
         {/* ====================================================
             7. КОНТАКТЫ И СПРАВОЧНАЯ
         ==================================================== */}
-        <section className="bg-white rounded-2xl border border-gray-200/90 p-6 sm:p-7 shadow-xs">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 mb-5">
+        <section className="bg-white rounded-2xl border border-gray-200/90 p-5 sm:p-6 shadow-xs">
+          <div className="flex items-start justify-between gap-3 mb-4">
             <div>
-              <h2 className="text-lg sm:text-xl font-bold text-gray-900 tracking-tight leading-snug">
+              <h2 className="text-base sm:text-lg font-bold text-gray-900 tracking-tight leading-snug">
                 Контакты автоцентров
               </h2>
-              <p className="text-xs sm:text-sm text-gray-500 mt-1 leading-relaxed">
+              <p className="text-xs sm:text-sm text-gray-500 mt-0.5 leading-snug">
                 Сеть дилерских центров и сервисных станций
               </p>
             </div>
             <button
               onClick={() => navigate("/contacts")}
-              className="text-xs sm:text-sm font-semibold text-[#76aa34] hover:underline self-start sm:self-auto whitespace-nowrap cursor-pointer"
+              className="inline-flex items-center space-x-1 text-xs font-semibold text-[#76aa34] bg-[#f0f7e8] hover:bg-[#e4f2d3] px-3 py-1.5 rounded-xl transition-colors shrink-0 cursor-pointer shadow-2xs"
             >
-              Все адреса
+              <span>Все адреса</span>
+              <ChevronRight size={14} />
             </button>
           </div>
 
-          <div className="flex items-center justify-between pt-4 sm:pt-5 border-t border-gray-100 gap-3">
-            <div className="flex items-center space-x-2 text-xs sm:text-sm text-gray-600 font-medium">
-              <Clock size={16} className="text-[#8cc63f] shrink-0" />
-              <span className="whitespace-nowrap">Ежедневно 09:00 — 21:00</span>
+          <div className="pt-4 border-t border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3.5">
+            <div className="flex items-center space-x-3 text-xs sm:text-sm text-gray-600 font-medium">
+              <div className="w-9 h-9 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center text-[#8cc63f] shrink-0 shadow-2xs">
+                <Clock size={18} />
+              </div>
+              <div>
+                <span className="block text-gray-900 font-semibold leading-tight text-xs sm:text-sm">
+                  Ежедневно 09:00 — 21:00
+                </span>
+                <span className="block text-gray-400 text-[11px] leading-tight mt-0.5">
+                  Без выходных и перерывов
+                </span>
+              </div>
             </div>
 
-            <a
-              href="tel:+78125651261"
-              className="bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs sm:text-sm font-bold px-4 py-2.5 rounded-xl transition-colors whitespace-nowrap"
-            >
-              Позвонить
-            </a>
+            <div className="self-stretch sm:self-auto">
+              <button
+                onClick={() => {
+                  setCallbackTopic("Заказ звонка из контактов");
+                  setShowCallback(true);
+                }}
+                className="w-full sm:w-auto inline-flex items-center justify-center space-x-1.5 bg-[#8cc63f] hover:bg-[#7ab82c] text-white text-xs sm:text-sm font-bold px-4 py-2.5 rounded-xl transition-all whitespace-nowrap shadow-xs active:scale-98 cursor-pointer"
+              >
+                <Phone size={13} className="shrink-0" />
+                <span>Заказать звонок</span>
+              </button>
+            </div>
           </div>
         </section>
       </main>
+
+      {/* Попап обратного звонка (Calltouch) */}
+      {showCallback && (
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-xs flex justify-center items-center z-50 p-4"
+          onClick={() => setShowCallback(false)}
+        >
+          <div
+            className="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-sm relative border border-gray-100 animate-in fade-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setShowCallback(false)}
+              className="absolute top-4 right-4 w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 flex items-center justify-center transition-colors cursor-pointer"
+            >
+              <X size={18} />
+            </button>
+
+            <div className="flex items-center space-x-2.5 mb-1.5">
+              <div className="w-8 h-8 rounded-lg bg-[#f0f7e8] text-[#8cc63f] flex items-center justify-center shrink-0">
+                <Phone size={18} />
+              </div>
+              <h3 className="text-lg font-bold text-gray-900">
+                Заказать звонок
+              </h3>
+            </div>
+            <p className="text-xs text-gray-500 mb-4">
+              Перезвоним в течение 1 минуты в рабочее время
+            </p>
+
+            <form onSubmit={handleCallbackSubmit} className="flex flex-col gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">
+                  Ваше имя
+                </label>
+                <input
+                  type="text"
+                  placeholder="Иван"
+                  value={callbackName}
+                  onChange={(e) => setCallbackName(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:border-[#8cc63f] focus:bg-white transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">
+                  Номер телефона <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="tel"
+                  placeholder="+7 (___) ___-__-__"
+                  value={callbackPhone}
+                  onChange={(e) => setCallbackPhone(formatRussianPhone(e.target.value))}
+                  required
+                  className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:border-[#8cc63f] focus:bg-white transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">
+                  Цель обращения
+                </label>
+                <select
+                  value={callbackTopic}
+                  onChange={(e) => setCallbackTopic(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:border-[#8cc63f] focus:bg-white transition-all"
+                >
+                  <option value="Запись на сервис">Запись на сервис</option>
+                  <option value="Покупка автомобиля">Покупка автомобиля</option>
+                  <option value="Авто с пробегом">Авто с пробегом</option>
+                  <option value="Общая консультация">Общая консультация</option>
+                </select>
+              </div>
+
+              <button
+                type="submit"
+                disabled={callbackSubmitting}
+                className="mt-1 w-full bg-[#8cc63f] hover:bg-[#7bb531] text-white font-bold py-3 rounded-xl shadow-sm transition-all active:scale-98 text-sm cursor-pointer disabled:opacity-50"
+              >
+                {callbackSubmitting ? "Отправка..." : "Жду звонка"}
+              </button>
+
+              {callbackStatus && (
+                <div
+                  className={`text-xs mt-1 p-2.5 rounded-lg text-center font-medium ${
+                    callbackStatus.startsWith("Ваша заявка")
+                      ? "bg-green-50 text-green-700"
+                      : "bg-red-50 text-red-600"
+                  }`}
+                >
+                  {callbackStatus}
+                </div>
+              )}
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Нижняя навигация */}
       <BottomNav />

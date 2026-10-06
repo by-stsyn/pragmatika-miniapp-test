@@ -76,64 +76,81 @@ export default function BottomNav() {
 
   return (
     <>
-      {/* Подложка для плавного перекрытия нижнего края */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white h-4 z-40" />
+      {/* iOS Liquid Glass Floating Dock */}
+      <div className="fixed bottom-3 sm:bottom-4 inset-x-3 sm:inset-x-4 z-50 pointer-events-none flex justify-center">
+        <nav
+          role="navigation"
+          aria-label="Основное меню"
+          className="pointer-events-auto relative w-full max-w-sm sm:max-w-md bg-white/70 backdrop-blur-2xl backdrop-saturate-180 border border-white/60 shadow-[0_12px_36px_rgba(0,0,0,0.12),0_2px_8px_rgba(0,0,0,0.04)] rounded-full px-2 py-1.5 flex items-center justify-between ring-1 ring-black/5"
+        >
+          {navItems.map((item, idx) => {
+            const Icon = item.icon;
+            const active = item.isActive;
 
-      {/* Нижнее меню */}
-      <nav className="fixed bottom-2 left-3 right-3 bg-white/95 backdrop-blur-md border border-gray-200/80 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] flex justify-around items-center py-2 z-50 rounded-2xl mx-auto max-w-lg transition-all">
-        {navItems.map((item, idx) => {
-          const Icon = item.icon;
-          const active = item.isActive;
+            if (item.isAction) {
+              return (
+                <button
+                  key={idx}
+                  onClick={item.onClick}
+                  type="button"
+                  aria-label={item.label}
+                  className="flex flex-col items-center justify-center py-0.5 px-2 rounded-full text-white transition-all active:scale-95 group cursor-pointer"
+                >
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#8cc63f] to-[#76aa34] shadow-md shadow-[#8cc63f]/30 flex items-center justify-center text-white transition-transform group-hover:scale-105">
+                    <Icon size={18} strokeWidth={2.4} />
+                  </div>
+                  <span className="text-[10px] font-semibold text-gray-700 mt-0.5 leading-none">
+                    {item.label}
+                  </span>
+                </button>
+              );
+            }
 
-          if (item.isAction) {
             return (
               <button
                 key={idx}
-                onClick={item.onClick}
-                className="flex flex-col items-center justify-center py-1 px-2.5 rounded-xl text-gray-600 hover:text-[#8cc63f] transition-all group"
+                onClick={() => navigate(item.path)}
+                type="button"
+                aria-label={item.label}
+                className={`flex-1 flex flex-col items-center justify-center py-1 px-1 rounded-full transition-colors cursor-pointer ${
+                  active
+                    ? "text-[#76aa34] font-bold"
+                    : "text-gray-500 hover:text-gray-900 font-medium"
+                }`}
               >
-                <div className="w-8 h-8 rounded-full bg-[#f0f7e8] group-hover:bg-[#8cc63f] flex items-center justify-center transition-colors">
-                  <Icon size={18} className="text-[#6fa02f] group-hover:text-white transition-colors" />
+                <div
+                  className={`w-8 h-7 flex items-center justify-center rounded-full transition-colors ${
+                    active ? "bg-white/80 shadow-2xs text-[#76aa34]" : "text-gray-500"
+                  }`}
+                >
+                  <Icon size={19} strokeWidth={active ? 2.5 : 2} />
                 </div>
-                <span className="text-[10px] font-semibold text-gray-700 group-hover:text-[#6fa02f] mt-0.5">
+                <span
+                  className={`text-[10px] mt-0.5 leading-none ${
+                    active ? "text-[#76aa34] font-bold" : "text-gray-500"
+                  }`}
+                >
                   {item.label}
                 </span>
               </button>
             );
-          }
-
-          return (
-            <button
-              key={idx}
-              onClick={() => navigate(item.path)}
-              className={`flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all ${
-                active
-                  ? "text-[#6fa02f] font-bold"
-                  : "text-gray-500 hover:text-gray-800 font-medium"
-              }`}
-            >
-              <div
-                className={`w-7 h-7 flex items-center justify-center rounded-lg transition-transform ${
-                  active ? "scale-110 text-[#8cc63f]" : ""
-                }`}
-              >
-                <Icon size={20} strokeWidth={active ? 2.5 : 2} />
-              </div>
-              <span className={`text-[10px] mt-0.5 ${active ? "text-[#6fa02f]" : "text-gray-500"}`}>
-                {item.label}
-              </span>
-            </button>
-          );
-        })}
-      </nav>
+          })}
+        </nav>
+      </div>
 
       {/* Попап обратного звонка (Calltouch) */}
       {showCallback && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex justify-center items-center z-50 p-4">
-          <div className="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-sm relative border border-gray-100 animate-in fade-in zoom-in-95 duration-200">
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-xs flex justify-center items-center z-50 p-4"
+          onClick={() => setShowCallback(false)}
+        >
+          <div
+            className="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-sm relative border border-gray-100 animate-in fade-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
             <button
               onClick={() => setShowCallback(false)}
-              className="absolute top-4 right-4 w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 flex items-center justify-center transition-colors"
+              className="absolute top-4 right-4 w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 flex items-center justify-center transition-colors cursor-pointer"
             >
               <X size={18} />
             </button>
