@@ -542,30 +542,32 @@ export default function Home() {
             </button>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3.5 sm:gap-4.5">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
             {DEALER_BRANDS.map((b) => (
               <button
                 key={b.name}
                 onClick={navigateTo("/showcase", { brand: b.filterVendor })}
-                className="bg-white hover:border-[#8cc63f] border border-gray-200/90 rounded-2xl p-4.5 sm:p-5 text-left transition-all flex flex-col justify-between shadow-xs hover:shadow-sm group cursor-pointer"
+                className="relative bg-white hover:border-[#8cc63f] border border-gray-200/90 rounded-2xl p-4 sm:p-5 text-left transition-all flex flex-col justify-between shadow-xs hover:shadow-sm group cursor-pointer"
               >
-                <div className="flex items-center justify-between w-full mb-3.5">
-                  <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gray-50/90 border border-gray-100 flex items-center justify-center p-2.5 group-hover:scale-105 transition-all shadow-2xs">
-                    <img
-                      src={b.logo}
-                      alt={b.name}
-                      className="w-full h-full object-contain"
-                    />
-                  </div>
-                  <span className="text-xs font-semibold text-gray-500 bg-gray-50 px-2.5 py-1 rounded-lg border border-gray-200/80 whitespace-nowrap self-start">
-                    {b.badge}
-                  </span>
+                {/* Бейдж количества справа сверху */}
+                <span className="absolute top-3 right-3 text-xs font-semibold text-gray-600 bg-gray-50 px-2 py-0.5 rounded-lg border border-gray-200/80 whitespace-nowrap shadow-2xs">
+                  {b.badge}
+                </span>
+
+                {/* Контейнер логотипа — крупный, размер с весь квадрат */}
+                <div className="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl bg-gray-50/90 border border-gray-100 flex items-center justify-center p-2 mb-3 group-hover:scale-105 transition-transform shadow-2xs">
+                  <img
+                    src={b.logo}
+                    alt={b.name}
+                    className="w-full h-full object-contain"
+                  />
                 </div>
+
                 <div>
-                  <span className="font-bold text-base sm:text-lg text-gray-900 block mb-1 group-hover:text-[#76aa34] transition-colors leading-snug">
+                  <span className="font-bold text-sm sm:text-base text-gray-900 block mb-0.5 group-hover:text-[#76aa34] transition-colors leading-tight">
                     {b.name}
                   </span>
-                  <span className="text-xs sm:text-sm text-gray-500 block leading-relaxed">
+                  <span className="text-xs text-gray-500 block leading-snug whitespace-nowrap">
                     {b.countText}
                   </span>
                 </div>
@@ -580,21 +582,27 @@ export default function Home() {
                 localStorage.removeItem("scrollToUsedCarId");
                 navigate("/ShowcaseUsed");
               }}
-              className="bg-white hover:border-orange-400 border border-gray-200/90 rounded-2xl p-4.5 sm:p-5 text-left transition-all flex flex-col justify-between shadow-xs hover:shadow-sm group cursor-pointer"
+              className="relative bg-white hover:border-orange-400 border border-gray-200/90 rounded-2xl p-4 sm:p-5 text-left transition-all flex flex-col justify-between shadow-xs hover:shadow-sm group cursor-pointer"
             >
-              <div className="flex items-center justify-between w-full mb-3.5">
-                <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-orange-50/90 border border-orange-100 flex items-center justify-center p-2.5 group-hover:scale-105 transition-all shadow-2xs">
-                  <Car size={26} className="text-orange-500" />
-                </div>
-                <span className="text-xs font-bold bg-orange-500 text-white px-2.5 py-1 rounded-lg shadow-xs whitespace-nowrap self-start">
-                  {usedCount || "519"}
-                </span>
+              {/* Бейдж количества справа сверху */}
+              <span className="absolute top-3 right-3 text-xs font-bold bg-orange-500 text-white px-2 py-0.5 rounded-lg shadow-xs whitespace-nowrap">
+                {usedCount || "519"}
+              </span>
+
+              {/* Контейнер красивой иконки авто с пробегом */}
+              <div className="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl bg-orange-50/80 border border-orange-100 flex items-center justify-center p-2 mb-3 group-hover:scale-105 transition-transform shadow-2xs">
+                <img
+                  src="/logos/used.svg"
+                  alt="С пробегом"
+                  className="w-full h-full object-contain"
+                />
               </div>
+
               <div>
-                <span className="font-bold text-base sm:text-lg text-gray-900 block mb-1 group-hover:text-orange-600 transition-colors leading-snug">
+                <span className="font-bold text-sm sm:text-base text-gray-900 block mb-0.5 group-hover:text-orange-600 transition-colors leading-tight">
                   С пробегом
                 </span>
-                <span className="text-xs sm:text-sm text-gray-500 block leading-relaxed">
+                <span className="text-xs text-gray-500 block leading-snug whitespace-nowrap">
                   Проверено дилером
                 </span>
               </div>
