@@ -30,7 +30,14 @@ export default function BonusPage() {
       if (!res.ok) throw new Error("Не удалось получить данные");
 
       const data = await res.json();
-      setBonus(data.card || null);
+      const cardData = data.card || null;
+      setBonus(cardData);
+      if (cardData) {
+        try {
+          localStorage.setItem("userBonus", JSON.stringify(cardData));
+          sessionStorage.setItem("userBonus", JSON.stringify(cardData));
+        } catch (e) {}
+      }
     } catch (e) {
       console.error(e);
       setError("Ошибка загрузки данных");

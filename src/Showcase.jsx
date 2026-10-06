@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Range } from "react-range";
 import { ArrowUp, ArrowLeft, SlidersHorizontal } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import BottomNav from "/src/components/BottomNav";
 import Preloader from "/src/components/Preloader";
 
@@ -92,7 +92,7 @@ const dealerNameMap = {
   "Прагматика LADA Великий Новгород|lada": "LADA Великий Новгород",
   "Прагматика LADA Великие Луки|lada": "LADA Великие Луки",
   "ПРАГМАТИКА ЛАДА Xcite|xcite": "XCITE Купчино",
-  "Прагматика LADA Мончегорск|xcite": "LADA Мончегорск",
+  "Прагматика LADA Мончегорск|lada": "LADA Мончегорск",
 	"Петрозаводск-Лада Lada (ВАЗ)|xcite": "XCITE Петрозаводск",
   "Прагматика LADA Великий Новгород|xcite": "XCITE Великий Новгород",
   "Прагматика LADA Великие Луки|xcite": "XCITE Великие Луки",
@@ -127,13 +127,16 @@ const normalizeDealer = (dealerName, brand) => {
 
 export default function CarShowcase() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const initialBrand = location.state?.brand;
   const [loadingImages, setLoadingImages] = useState(true);
   const [cars, setCars] = useState([]);
   const [filtered, setFiltered] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const [filters, setFilters] = useState({
-    vendor: [],
+    vendor: initialBrand ? [initialBrand] : [],
     model: [],
     color: [],
     body: [],
@@ -143,7 +146,7 @@ export default function CarShowcase() {
   });
 
   const [openFilters, setOpenFilters] = useState({
-    vendor: false,
+    vendor: !!initialBrand,
     model: false,
     color: false,
     body: false,
@@ -294,6 +297,7 @@ return {
         setLoading(false);
       } catch (e) {
         console.error("Ошибка загрузки фида", e);
+        setError("Не удалось загрузить автомобили. Пожалуйста, проверьте соединение и попробуйте снова.");
         setLoading(false);
       }
     };
@@ -408,9 +412,23 @@ return {
         <h1 className="text-3xl font-bold text-center text-gray-800 mb-8">Новые автомобили</h1>
 
         {loading ? (
-  <Preloader />
-) : (
-  <>
+          <Preloader />
+        ) : error ? (
+          <div className="text-center py-16 px-4 bg-white rounded-xl shadow-xs border border-gray-200 my-6">
+            <p className="text-gray-800 font-semibold mb-3">{error}</p>
+            <button
+              onClick={() => {
+                setError(null);
+                setLoading(true);
+                window.location.reload();
+              }}
+              className="bg-[#8cc63f] hover:bg-[#7ab82c] text-white px-6 py-2.5 rounded-lg font-bold transition-colors shadow-xs"
+            >
+              Повторить попытку
+            </button>
+          </div>
+        ) : (
+          <>
             <div className="mb-4">
   <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-3 filter-container">
   {/* Бренд */}
@@ -562,41 +580,49 @@ return {
     max={priceRange[1]}
     values={filters.price}
     onChange={(values) => setFilters({ ...filters, price: values })}
-    renderTrack={({ props, children }) => (
-      <div
-        {...props}
-        className="h-2 my-4 rounded"
-        style={{
-          ...props.style,
-          background: `linear-gradient(
-            to right,
-            #e0e0e0 ${((filters.price[0] - priceRange[0]) / (priceRange[1] - priceRange[0])) * 100}%,
-            #8cc63f ${((filters.price[0] - priceRange[0]) / (priceRange[1] - priceRange[0])) * 100}%,
-            #8cc63f ${((filters.price[1] - priceRange[0]) / (priceRange[1] - priceRange[0])) * 100}%,
-            #e0e0e0 ${((filters.price[1] - priceRange[0]) / (priceRange[1] - priceRange[0])) * 100}%
-          )`,
-          alignItems: 'center',
-        }}
-      >
-        {children}
-      </div>
-    )}
-    renderThumb={({ props }) => (
-      <div
-        {...props}
-        className="rounded-full shadow cursor-pointer"
-        style={{
-          ...props.style,
-          height: '20px',
-          width: '20px',
-          backgroundColor: '#8cc63f',
-          border: '2px solid white',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-        }}
-      />
-    )}
+    renderTrack={({ props, children }) => {
+      const { key, ...restProps } = props;
+      return (
+        <div
+          key={key}
+          {...restProps}
+          className="h-2 my-4 rounded"
+          style={{
+            ...restProps.style,
+            background: `linear-gradient(
+              to right,
+              #e0e0e0 ${((filters.price[0] - priceRange[0]) / (priceRange[1] - priceRange[0])) * 100}%,
+              #8cc63f ${((filters.price[0] - priceRange[0]) / (priceRange[1] - priceRange[0])) * 100}%,
+              #8cc63f ${((filters.price[1] - priceRange[0]) / (priceRange[1] - priceRange[0])) * 100}%,
+              #e0e0e0 ${((filters.price[1] - priceRange[0]) / (priceRange[1] - priceRange[0])) * 100}%
+            )`,
+            alignItems: 'center',
+          }}
+        >
+          {children}
+        </div>
+      );
+    }}
+    renderThumb={({ props }) => {
+      const { key, ...restProps } = props;
+      return (
+        <div
+          key={key}
+          {...restProps}
+          className="rounded-full shadow cursor-pointer"
+          style={{
+            ...restProps.style,
+            height: '20px',
+            width: '20px',
+            backgroundColor: '#8cc63f',
+            border: '2px solid white',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
+        />
+      );
+    }}
   />
 </div>
 
@@ -858,41 +884,49 @@ return {
     max={priceRange[1]}
     values={filters.price}
     onChange={(values) => setFilters({ ...filters, price: values })}
-    renderTrack={({ props, children }) => (
-      <div
-        {...props}
-        className="h-2 my-4 rounded"
-        style={{
-          ...props.style,
-          background: `linear-gradient(
-            to right,
-            #e0e0e0 ${((filters.price[0] - priceRange[0]) / (priceRange[1] - priceRange[0])) * 100}%,
-            #8cc63f ${((filters.price[0] - priceRange[0]) / (priceRange[1] - priceRange[0])) * 100}%,
-            #8cc63f ${((filters.price[1] - priceRange[0]) / (priceRange[1] - priceRange[0])) * 100}%,
-            #e0e0e0 ${((filters.price[1] - priceRange[0]) / (priceRange[1] - priceRange[0])) * 100}%
-          )`,
-          alignItems: 'center',
-        }}
-      >
-        {children}
-      </div>
-    )}
-    renderThumb={({ props }) => (
-      <div
-        {...props}
-        className="rounded-full shadow cursor-pointer"
-        style={{
-          ...props.style,
-          height: '20px',
-          width: '20px',
-          backgroundColor: '#8cc63f',
-          border: '2px solid white',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-        }}
-      />
-    )}
+    renderTrack={({ props, children }) => {
+      const { key, ...restProps } = props;
+      return (
+        <div
+          key={key}
+          {...restProps}
+          className="h-2 my-4 rounded"
+          style={{
+            ...restProps.style,
+            background: `linear-gradient(
+              to right,
+              #e0e0e0 ${((filters.price[0] - priceRange[0]) / (priceRange[1] - priceRange[0])) * 100}%,
+              #8cc63f ${((filters.price[0] - priceRange[0]) / (priceRange[1] - priceRange[0])) * 100}%,
+              #8cc63f ${((filters.price[1] - priceRange[0]) / (priceRange[1] - priceRange[0])) * 100}%,
+              #e0e0e0 ${((filters.price[1] - priceRange[0]) / (priceRange[1] - priceRange[0])) * 100}%
+            )`,
+            alignItems: 'center',
+          }}
+        >
+          {children}
+        </div>
+      );
+    }}
+    renderThumb={({ props }) => {
+      const { key, ...restProps } = props;
+      return (
+        <div
+          key={key}
+          {...restProps}
+          className="rounded-full shadow cursor-pointer"
+          style={{
+            ...restProps.style,
+            height: '20px',
+            width: '20px',
+            backgroundColor: '#8cc63f',
+            border: '2px solid white',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
+        />
+      );
+    }}
   />
 </div>           
 		   <div className="mt-4 flex justify-between">

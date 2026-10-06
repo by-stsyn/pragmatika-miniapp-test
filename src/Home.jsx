@@ -1,253 +1,959 @@
-import React, { useState, useEffect, useCallback, memo } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { platform } from "./platform";
 import { useNavigate } from "react-router-dom";
-import InputMask from "react-input-mask";
 import BottomNav from "/src/components/BottomNav";
+import {
+  Car,
+  Wrench,
+  CircleDot,
+  Gift,
+  Newspaper,
+  User,
+  ChevronRight,
+  ChevronLeft,
+  Phone,
+  MapPin,
+  Clock,
+  ArrowRight,
+  CreditCard,
+  CheckCircle2,
+} from "lucide-react";
 
-/* =====================
-   UI компоненты
-===================== */
+const BASE_URL = "/api/render";
 
-const Section = memo(({ title, children }) => (
-  <div className="bg-white rounded-xl shadow-md p-4 mb-6">
-    <h2 className="text-xl font-bold mb-4 text-gray-700">{title}</h2>
-    <div className="flex flex-col gap-3">{children}</div>
-  </div>
-));
+// Официальные бренды Прагматики (соответствуют сайту)
+const DEALER_BRANDS = [
+  {
+    name: "LADA",
+    logo: "/logos/lada.png",
+    countText: "902 авто в наличии",
+    badge: "902",
+    filterVendor: "LADA",
+  },
+  {
+    name: "CHANGAN",
+    logo: "/logos/changan.png",
+    countText: "64 авто в наличии",
+    badge: "64",
+    filterVendor: "Changan",
+  },
+  {
+    name: "GEELY",
+    logo: "/logos/geely.png",
+    countText: "54 авто в наличии",
+    badge: "54",
+    filterVendor: "Geely",
+  },
+  {
+    name: "BELGEE",
+    logo: "/logos/belgee.png",
+    countText: "50 авто в наличии",
+    badge: "50",
+    filterVendor: "Belgee",
+  },
+  {
+    name: "XCITE",
+    logo: "/logos/xcite.png",
+    countText: "Автомобили в наличии",
+    badge: "NEW",
+    filterVendor: "XCITE",
+  },
+];
 
-const AppButton = memo(({ label, onClick, disabled = false, count }) => {
-  const handleClick = useCallback(
-    (e) => {
-      e.preventDefault();
-      if (!disabled && onClick) onClick();
-    },
-    [onClick, disabled]
-  );
-
-  return (
-    <button
-      onClick={handleClick}
-      disabled={disabled}
-      className={`w-full bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-3 px-4 rounded-lg shadow-sm transition-colors flex items-center justify-between ${
-        disabled ? "opacity-50 cursor-not-allowed" : ""
-      }`}
-    >
-      <span>{label}</span>
-
-      {typeof count === "number" && (
-        <span className="ml-3 px-3 py-1 rounded-md bg-[#85bc3c] text-white text-sm font-semibold">
-          {count}
-        </span>
-      )}
-    </button>
-  );
-});
-
-/* =====================
-   Основной компонент
-===================== */
+// Начальные промо-слайды (последние актуальные акции из фида)
+const DEFAULT_PROMO_SLIDES = [
+  {
+    title: "Масляный сервис Fix Price",
+    thumbnail:
+      "https://www.pragmaticar.ru/uploads/offer/9a71d62a80fcd4d3084a7da779fab0b4.png",
+    link: "https://www.pragmaticar.ru/offers/service/maslyanyi_servis_fix_price_originalnoe_maslo_pochti_darom_vse_vklucheno_bez_skrytyh_surprizov__uspeite/",
+  },
+  {
+    title: "ТО на Ваш KIA на специальной цене",
+    thumbnail:
+      "https://www.pragmaticar.ru/uploads/offer/dfb6995f230bf67f639cc4a5d4d37699.jpg",
+    link: "https://www.pragmaticar.ru/offers/service/to_na_vash_kia_na_specialnoi_cene/",
+  },
+  {
+    title: "С заботой в зиму! Комплексная подготовка",
+    thumbnail:
+      "https://www.pragmaticar.ru/uploads/offer/f094f061cd1967dfff9d29da1a93337e.png",
+    link: "https://www.pragmaticar.ru/offers/service/s_zabotoi_v_zimu/",
+  },
+];
 
 export default function Home() {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [initError, setInitError] = useState(null);
-
- 
-
   const navigate = useNavigate();
 
-  const [newCount, setNewCount] = useState(null);
+  // Состояние пользователя
+  const [user, setUser] = useState(null);
+  const [userId, setUserId] = useState(null);
 
+  // Бонусы: строго из профиля пользователя (никаких случайных 1500)
+  const [bonus, setBonus] = useState(null);
+  const [bonusLoading, setBonusLoading] = useState(true);
+
+  // Счетчики авто
+  const [newCount, setNewCount] = useState(null);
   const [usedCount, setUsedCount] = useState(null);
 
-  /* Telegram WebApp init */
- useEffect(() => {
-  const init = async () => {
+  // Переключатель каталога
+  const [activeCatalogTab, setActiveCatalogTab] = useState("new");
+
+  // Слайдер акций (последние 3 акции из фида, ТОЛЬКО картинки)
+  const [promoSlides, setPromoSlides] = useState(DEFAULT_PROMO_SLIDES);
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+  const touchStartX = useRef(null);
+
+  /* ====================================================
+     Инициализация пользователя и бонусов (из профиля)
+  ==================================================== */
+  useEffect(() => {
     try {
       const userData = platform.getUser();
-
       if (userData) {
-        // Используем поля, которые реально возвращает platform.getUser()
         setUser({
-          first_name: userData.firstName || "Пользователь",
-          last_name: userData.lastName || "",
-        });
-      } else {
-        setUser({
-          first_name: "Пользователь",
-          last_name: "",
+          first_name: userData.firstName || userData.first_name || "Клиент",
+          last_name: userData.lastName || userData.last_name || "",
         });
       }
-    } catch (err) {
-      console.error("Initialization error:", err);
-      setInitError("Не удалось инициализировать приложение");
-    } finally {
-      setLoading(false);
-    }
-  };
 
-  init();
-}, []);
-
-  
-/* =====================
-   Загрузка количества авто
-===================== */
-useEffect(() => {
-  const loadCounts = async () => {
-    const now = Date.now();
-
-    const loadCount = async (url, storageKey, setCount, label) => {
+      // 1. Читаем кэш из профиля (если пользователь уже открывал профиль)
       try {
-        const cached = localStorage.getItem(storageKey);
-        const lastUpdate = Number(
-          localStorage.getItem(`${storageKey}UpdatedAt`)
-        );
-
-        // Используем отдельный кэш для каждого счётчика
-        if (
-          cached !== null &&
-          Number.isFinite(Number(cached)) &&
-          Number.isFinite(lastUpdate) &&
-          now - lastUpdate < 5 * 60 * 1000
-        ) {
-          setCount(Number(cached));
-          return;
+        const cached =
+          localStorage.getItem("userBonus") ||
+          sessionStorage.getItem("userBonus");
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed && typeof parsed.balance !== "undefined") {
+            setBonus(parsed);
+          }
         }
+      } catch (e) {}
 
-        const response = await fetch(url);
+      // 2. Получаем ID пользователя из Telegram / MAX
+      const uid = platform.getId?.();
+      setUserId(uid);
 
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
-        }
-
-        const data = await response.json();
-        const value = Number(data.count);
-
-        if (!Number.isFinite(value)) {
-          throw new Error(`Некорректное количество: ${data.count}`);
-        }
-
-        setCount(value);
-        localStorage.setItem(storageKey, String(value));
-        localStorage.setItem(
-          `${storageKey}UpdatedAt`,
-          String(now)
-        );
-
-        console.log(`${label}:`, value);
-      } catch (error) {
-        console.error(`Ошибка загрузки (${label}):`, error);
-
-        // Если есть старое корректное значение — показываем его
-        const cached = Number(localStorage.getItem(storageKey));
-        if (Number.isFinite(cached)) {
-          setCount(cached);
-        }
+      if (!uid) {
+        setBonusLoading(false);
+        return;
       }
+
+      // 3. Загружаем актуальные данные карты лояльности с бэкенда
+      const idParam = platform.isMax?.() ? "maxId" : "telegramId";
+      fetch(`${BASE_URL}?path=communication/contact/bonus&${idParam}=${uid}`)
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (data?.card) {
+            setBonus(data.card);
+            try {
+              localStorage.setItem("userBonus", JSON.stringify(data.card));
+              sessionStorage.setItem("userBonus", JSON.stringify(data.card));
+            } catch (e) {}
+          } else {
+            // Если карты нет в профиле пользователя — отображаем null (0 баллов)
+            setBonus(null);
+            try {
+              localStorage.removeItem("userBonus");
+              sessionStorage.removeItem("userBonus");
+            } catch (e) {}
+          }
+        })
+        .catch(() => {
+          // При сетевой ошибке не ставим случайных чисел
+        })
+        .finally(() => {
+          setBonusLoading(false);
+        });
+    } catch {
+      setBonusLoading(false);
+    }
+  }, []);
+
+  /* ====================================================
+     Загрузка счетчиков автомобилей
+  ==================================================== */
+  useEffect(() => {
+    const loadCounts = async () => {
+      const now = Date.now();
+
+      const fetchCount = async (url, storageKey, setter) => {
+        try {
+          const cached = localStorage.getItem(storageKey);
+          const lastUpdate = Number(
+            localStorage.getItem(`${storageKey}UpdatedAt`)
+          );
+
+          if (
+            cached !== null &&
+            Number.isFinite(Number(cached)) &&
+            Number.isFinite(lastUpdate) &&
+            now - lastUpdate < 5 * 60 * 1000
+          ) {
+            setter(Number(cached));
+            return;
+          }
+
+          const res = await fetch(url);
+          if (res.ok) {
+            const data = await res.json();
+            const val = Number(data.count);
+            if (Number.isFinite(val)) {
+              setter(val);
+              localStorage.setItem(storageKey, String(val));
+              localStorage.setItem(`${storageKey}UpdatedAt`, String(now));
+            }
+          }
+        } catch {
+          const cached = Number(localStorage.getItem(storageKey));
+          if (Number.isFinite(cached)) setter(cached);
+        }
+      };
+
+      await Promise.all([
+        fetchCount("/api/fetch-feed-all?count=1", "newCount", setNewCount),
+        fetchCount("/api/fetch-feed-used?count=1", "usedCount", setUsedCount),
+      ]);
     };
 
-    await Promise.all([
-      loadCount(
-        "/api/fetch-feed-all?count=1",
-        "newCount",
-        setNewCount,
-        "Новые автомобили"
-      ),
-      loadCount(
-        "/api/fetch-feed-used?count=1",
-        "usedCount",
-        setUsedCount,
-        "Автомобили с пробегом"
-      ),
-    ]);
-  };
+    loadCounts();
+  }, []);
 
-  loadCounts();
-}, []);
+  /* ====================================================
+     Загрузка последних 3 акций для слайдера (только картинки)
+  ==================================================== */
+  useEffect(() => {
+    fetch("/api/fetch-offers")
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => {
+        if (Array.isArray(data) && data.length > 0) {
+          const sorted = [...data].sort(
+            (a, b) => new Date(b.pubDate) - new Date(a.pubDate)
+          );
+          const withThumbs = sorted.filter(
+            (item) =>
+              item.thumbnail &&
+              typeof item.thumbnail === "string" &&
+              item.thumbnail.trim().length > 0
+          );
+          if (withThumbs.length > 0) {
+            setPromoSlides(withThumbs.slice(0, 3));
+          }
+        }
+      })
+      .catch((err) => {
+        console.error("Ошибка загрузки акций для слайдера:", err);
+      });
+  }, []);
 
-
-
+  /* ====================================================
+     Автопрокрутка слайдера акций каждые 4.5 сек
+  ==================================================== */
+  useEffect(() => {
+    if (promoSlides.length <= 1 || isPaused) return;
+    const interval = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % promoSlides.length);
+    }, 4500);
+    return () => clearInterval(interval);
+  }, [promoSlides.length, isPaused]);
 
   const navigateTo = useCallback(
-    (path) => (e) => {
-      e?.preventDefault();
-      navigate(path);
-    },
+    (path, state = {}) =>
+      (e) => {
+        e?.preventDefault();
+        navigate(path, { state });
+      },
     [navigate]
   );
 
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#8cc63f]" />
-      </div>
-    );
-  }
-
-  if (initError) {
-    return (
-      <div className="flex justify-center items-center min-h-screen p-4">
-        <p className="text-red-500 text-center">{initError}</p>
-      </div>
-    );
-  }
-
   return (
-    <div className="p-6 pb-[90px] bg-gray-50 min-h-screen">
-      <header className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">
-          Автоцентр Прагматика
-        </h1>
-        {user && (
-          <p className="text-sm text-gray-600 mt-1">
-            Добро пожаловать, {user.first_name}!
-          </p>
-        )}
+    <div className="min-h-screen bg-[#f8f9fa] text-[#1a202c] pb-[120px] font-sans antialiased selection:bg-[#8cc63f] selection:text-white">
+      {/* ====================================================
+          1. ПРОСТОРНЫЙ ХЕДЕР С ОФИЦИАЛЬНЫМ ЛОГОТИПОМ
+      ==================================================== */}
+      <header className="sticky top-0 z-40 bg-white border-b border-gray-200/80 px-4 sm:px-6 py-3.5 transition-all shadow-2xs">
+        <div className="max-w-xl mx-auto flex items-center justify-between gap-4">
+          {/* Официальный логотип Pragmatika */}
+          <div
+            onClick={() => navigate("/")}
+            className="cursor-pointer flex items-center shrink-0"
+          >
+            <img
+              src="/logo-pragmatika-1.svg"
+              alt="Прагматика"
+              className="h-8 sm:h-9 w-auto object-contain max-w-[195px]"
+              onError={(e) => {
+                e.currentTarget.src = "/logo-pragmatika.svg";
+              }}
+            />
+          </div>
+
+          {/* Переход в ЛК в правом верхнем углу (стильная иконка профиля без громоздкой надписи) */}
+          <button
+            onClick={() => navigate("/ProfilePage")}
+            aria-label="Личный кабинет"
+            title="Личный кабинет"
+            className="w-10 h-10 rounded-full bg-white hover:bg-[#f0f7e8] border border-gray-200/90 hover:border-[#8cc63f] flex items-center justify-center transition-all shadow-2xs shrink-0 relative group"
+          >
+            {user?.photo ? (
+              <img
+                src={user.photo}
+                alt={user.first_name || "Профиль"}
+                className="w-8 h-8 rounded-full object-cover"
+              />
+            ) : (
+              <div className="w-8 h-8 rounded-full bg-[#f0f7e8] group-hover:bg-[#8cc63f] text-[#6fa02f] group-hover:text-white flex items-center justify-center transition-colors">
+                <User size={18} strokeWidth={2.2} />
+              </div>
+            )}
+            {/* Статусная точка бренда */}
+            <span className="w-2.5 h-2.5 bg-[#8cc63f] rounded-full border-2 border-white absolute top-0.5 right-0.5" />
+          </button>
+        </div>
+
+        {/* Индикатор сети и контактов (без привязки к одному городу) */}
+        <div className="max-w-xl mx-auto mt-3 pt-2.5 border-t border-gray-100 flex items-center justify-between text-xs sm:text-sm text-gray-500">
+          <div className="flex items-center space-x-1.5">
+            <MapPin size={14} className="text-[#8cc63f] shrink-0" />
+            <span className="font-medium text-gray-600 whitespace-nowrap">
+              Сеть дилерских центров
+            </span>
+          </div>
+          <a
+            href="tel:+78125651261"
+            className="flex items-center space-x-1 font-semibold text-gray-700 hover:text-[#8cc63f] transition-colors whitespace-nowrap ml-3"
+          >
+            <Phone size={13} className="text-[#8cc63f] shrink-0" />
+            <span>+7 (812) 565-12-61</span>
+          </a>
+        </div>
       </header>
 
-      <Section title="Покупка">
-        <AppButton
-          label="🚗 Новые автомобили"
-          count={newCount}
-          onClick={navigateTo("/Showcase")}
-        />
+      {/* Основной контент с просторными отступами и воздушной сеткой */}
+      <main className="max-w-xl mx-auto px-4 sm:px-6 pt-7 sm:pt-10 pb-28 sm:pb-32 space-y-9 sm:space-y-11">
+        {/* ====================================================
+            2. ЛОЯЛЬНОСТЬ: БОНУСНАЯ КАРТА ИЗ ПРОФИЛЯ (БЕЗ ФЕЙКОВЫХ ЧИСЕЛ)
+        ==================================================== */}
+        <section className="bg-white rounded-2xl border border-gray-200/90 p-6 sm:p-7 shadow-xs">
+          <div className="flex items-center justify-between pb-5 border-b border-gray-100 gap-3">
+            <div className="min-w-0">
+              <p className="text-xs uppercase tracking-wider font-semibold text-gray-400">
+                Клубная программа
+              </p>
+              <h2 className="text-base sm:text-lg font-bold text-gray-900 mt-0.5 leading-snug">
+                {user?.first_name
+                  ? `Здравствуйте, ${user.first_name}!`
+                  : "Прагматика Бонус"}
+              </h2>
+            </div>
+            <span className="text-xs font-mono bg-gray-50 text-gray-600 px-3 py-1.5 rounded-lg border border-gray-200/80 whitespace-nowrap shrink-0">
+              {bonus?.number ? `№ ${bonus.number}` : "Клубная карта"}
+            </span>
+          </div>
 
-        <AppButton
-          label="🚙 Автомобили с пробегом"
-          count={usedCount}
-          onClick={() => {
-            localStorage.removeItem("usedFilters");
-            localStorage.removeItem("usedVisibleCount");
-            localStorage.removeItem("scrollToUsedCarId");
-            navigate("/ShowcaseUsed");
-          }}
-        />
-      </Section>
+          <div className="py-6 sm:py-7 flex items-baseline justify-between gap-4">
+            <div className="min-w-0">
+              <span className="text-xs text-gray-500 block mb-1.5 leading-relaxed">
+                {bonus ? "Доступный баланс" : "Баланс баллов"}
+              </span>
+              <div className="flex items-baseline space-x-2">
+                <span className="text-3xl sm:text-4xl font-extrabold text-[#76aa34] tracking-tight leading-none">
+                  {bonusLoading
+                    ? "..."
+                    : bonus?.balance !== undefined
+                    ? Number(bonus.balance).toLocaleString("ru-RU")
+                    : "0"}
+                </span>
+                <span className="text-sm font-semibold text-gray-600">
+                  баллов
+                </span>
+              </div>
+            </div>
 
-      <Section title="Обслуживание">
-        <AppButton
-          label="🛠 Запись на сервис"
-          onClick={navigateTo("/ServiceBooking")}
-        />
-        <AppButton
-          label="🔘 Шины и диски"
-          onClick={navigateTo("/tires-wheels")}
-        />
-      </Section>
+            <button
+              onClick={() => navigate("/BonusPage")}
+              className="bg-[#8cc63f] hover:bg-[#7ab82c] text-white text-xs sm:text-sm font-bold px-5 py-2.5 rounded-xl transition-all flex items-center justify-center space-x-1.5 shadow-xs whitespace-nowrap shrink-0 min-w-[110px] cursor-pointer"
+            >
+              <span>{bonus ? "История" : "Подробнее"}</span>
+              <ChevronRight size={16} className="shrink-0" />
+            </button>
+          </div>
 
-      <Section title="Прагматика">
-        <AppButton label="🎁 Акции и предложения" onClick={navigateTo("/offers")} />
-        <AppButton label="📰 Новости Прагматика" onClick={navigateTo("/NewsList")} />
-        <AppButton label="💼 Профиль" onClick={navigateTo("/ProfilePage")} />
-        <AppButton label="💳 Бонусный счёт" onClick={navigateTo("/BonusPage")} />
-      </Section>
+          <div className="pt-4 border-t border-gray-100 flex items-center justify-between text-xs sm:text-sm text-gray-500 gap-3">
+            <span className="leading-relaxed">
+              1 балл = 1 ₽ скидки при оплате сервиса и запчастей
+            </span>
+            <button
+              onClick={() => navigate("/ProfilePage")}
+              className="text-[#76aa34] font-semibold hover:underline flex items-center space-x-1 whitespace-nowrap shrink-0 cursor-pointer"
+            >
+              <span>В профиль</span>
+              <ArrowRight size={14} />
+            </button>
+          </div>
+        </section>
 
-       <Section title="Зона отдыха">
-        <AppButton label="🚘 Автозмейка" onClick={navigateTo("/snake")} />
-      
-      </Section>
+        {/* ====================================================
+            3. СЛАЙДЕР АКЦИЙ (ПОСЛЕДНИЕ 3 АКЦИИ, ТОЛЬКО КАРТИНКИ)
+        ==================================================== */}
+        <section className="space-y-4">
+          <div className="flex items-center justify-between px-1">
+            <h2 className="text-lg sm:text-xl font-bold text-gray-900 tracking-tight leading-snug">
+              Спецпредложения
+            </h2>
+            <button
+              onClick={() => navigate("/offers")}
+              className="text-xs sm:text-sm font-semibold text-[#76aa34] hover:underline flex items-center space-x-0.5 whitespace-nowrap cursor-pointer"
+            >
+              <span>Все акции</span>
+              <ChevronRight size={15} />
+            </button>
+          </div>
 
+          <div
+            className="relative w-full rounded-2xl overflow-hidden bg-gray-100 border border-gray-200/90 shadow-xs select-none group"
+            onMouseEnter={() => setIsPaused(true)}
+            onMouseLeave={() => setIsPaused(false)}
+            onTouchStart={(e) => {
+              touchStartX.current = e.touches[0].clientX;
+              setIsPaused(true);
+            }}
+            onTouchMove={(e) => {
+              if (touchStartX.current === null) return;
+              const diff = touchStartX.current - e.touches[0].clientX;
+              if (Math.abs(diff) > 40) {
+                if (diff > 0) {
+                  setCurrentSlide((prev) => (prev + 1) % promoSlides.length);
+                } else {
+                  setCurrentSlide(
+                    (prev) =>
+                      (prev - 1 + promoSlides.length) % promoSlides.length
+                  );
+                }
+                touchStartX.current = null;
+              }
+            }}
+            onTouchEnd={() => {
+              touchStartX.current = null;
+              setIsPaused(false);
+            }}
+          >
+            {/* Слайды (тянем ТОЛЬКО чистые маркетинговые постеры) */}
+            <div
+              className="flex transition-transform duration-500 ease-out"
+              style={{ transform: `translateX(-${currentSlide * 100}%)` }}
+            >
+              {promoSlides.map((slide, idx) => (
+                <div
+                  key={slide.thumbnail || idx}
+                  onClick={() => {
+                    navigate(`/offer/${idx}`, { state: { offer: slide } });
+                  }}
+                  className="w-full shrink-0 cursor-pointer aspect-[2.29/1] relative overflow-hidden bg-zinc-950 flex items-center justify-center"
+                >
+                  <img
+                    src={slide.thumbnail}
+                    alt={slide.title || "Акция Прагматика"}
+                    className="w-full h-full object-cover block"
+                    loading={idx === 0 ? "eager" : "lazy"}
+                  />
+                </div>
+              ))}
+            </div>
+
+            {/* Стрелки переключения для ПК/планшетов */}
+            {promoSlides.length > 1 && (
+              <>
+                <button
+                  type="button"
+                  aria-label="Предыдущий слайд"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setCurrentSlide(
+                      (prev) =>
+                        (prev - 1 + promoSlides.length) % promoSlides.length
+                    );
+                  }}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40 hover:bg-black/60 text-white flex items-center justify-center backdrop-blur-xs transition-opacity opacity-0 group-hover:opacity-100 sm:opacity-75"
+                >
+                  <ChevronLeft size={18} />
+                </button>
+                <button
+                  type="button"
+                  aria-label="Следующий слайд"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setCurrentSlide(
+                      (prev) => (prev + 1) % promoSlides.length
+                    );
+                  }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40 hover:bg-black/60 text-white flex items-center justify-center backdrop-blur-xs transition-opacity opacity-0 group-hover:opacity-100 sm:opacity-75"
+                >
+                  <ChevronRight size={18} />
+                </button>
+              </>
+            )}
+
+            {/* Точки-индикаторы */}
+            {promoSlides.length > 1 && (
+              <div className="absolute bottom-3 left-0 right-0 flex justify-center items-center space-x-2 z-10 pointer-events-none">
+                {promoSlides.map((_, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    aria-label={`Слайд ${idx + 1}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCurrentSlide(idx);
+                    }}
+                    className={`h-1.5 rounded-full transition-all duration-300 pointer-events-auto ${
+                      currentSlide === idx
+                        ? "w-6 bg-[#8cc63f]"
+                        : "w-2 bg-white/70 hover:bg-white"
+                    }`}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* ====================================================
+            4. ОФИЦИАЛЬНЫЙ ДИЛЕР (ПЛОСКАЯ ПРОСТОРНАЯ СЕТКА)
+        ==================================================== */}
+        <section className="space-y-4">
+          <div className="flex items-center justify-between px-1">
+            <div>
+              <h2 className="text-lg sm:text-xl font-bold text-gray-900 tracking-tight leading-snug">
+                Официальный дилер
+              </h2>
+              <p className="text-xs sm:text-sm text-gray-500 mt-1 leading-relaxed">
+                Новые автомобили с заводской гарантией в наличии
+              </p>
+            </div>
+            <button
+              onClick={() => navigate("/showcase")}
+              className="text-xs sm:text-sm font-semibold text-[#76aa34] hover:underline flex items-center space-x-0.5 whitespace-nowrap ml-2 cursor-pointer"
+            >
+              <span>Весь каталог</span>
+              <ChevronRight size={15} />
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3.5 sm:gap-4.5">
+            {DEALER_BRANDS.map((b) => (
+              <button
+                key={b.name}
+                onClick={navigateTo("/showcase", { brand: b.filterVendor })}
+                className="bg-white hover:border-[#8cc63f] border border-gray-200/90 rounded-2xl p-4.5 sm:p-5 text-left transition-all flex flex-col justify-between shadow-xs hover:shadow-sm group cursor-pointer"
+              >
+                <div className="flex items-center justify-between w-full mb-3.5">
+                  <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gray-50/90 border border-gray-100 flex items-center justify-center p-2.5 group-hover:scale-105 transition-all shadow-2xs">
+                    <img
+                      src={b.logo}
+                      alt={b.name}
+                      className="w-full h-full object-contain"
+                    />
+                  </div>
+                  <span className="text-xs font-semibold text-gray-500 bg-gray-50 px-2.5 py-1 rounded-lg border border-gray-200/80 whitespace-nowrap self-start">
+                    {b.badge}
+                  </span>
+                </div>
+                <div>
+                  <span className="font-bold text-base sm:text-lg text-gray-900 block mb-1 group-hover:text-[#76aa34] transition-colors leading-snug">
+                    {b.name}
+                  </span>
+                  <span className="text-xs sm:text-sm text-gray-500 block leading-relaxed">
+                    {b.countText}
+                  </span>
+                </div>
+              </button>
+            ))}
+
+            {/* Карточка Авто с пробегом */}
+            <button
+              onClick={() => {
+                localStorage.removeItem("usedFilters");
+                localStorage.removeItem("usedVisibleCount");
+                localStorage.removeItem("scrollToUsedCarId");
+                navigate("/ShowcaseUsed");
+              }}
+              className="bg-white hover:border-orange-400 border border-gray-200/90 rounded-2xl p-4.5 sm:p-5 text-left transition-all flex flex-col justify-between shadow-xs hover:shadow-sm group cursor-pointer"
+            >
+              <div className="flex items-center justify-between w-full mb-3.5">
+                <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-orange-50/90 border border-orange-100 flex items-center justify-center p-2.5 group-hover:scale-105 transition-all shadow-2xs">
+                  <Car size={26} className="text-orange-500" />
+                </div>
+                <span className="text-xs font-bold bg-orange-500 text-white px-2.5 py-1 rounded-lg shadow-xs whitespace-nowrap self-start">
+                  {usedCount || "519"}
+                </span>
+              </div>
+              <div>
+                <span className="font-bold text-base sm:text-lg text-gray-900 block mb-1 group-hover:text-orange-600 transition-colors leading-snug">
+                  С пробегом
+                </span>
+                <span className="text-xs sm:text-sm text-gray-500 block leading-relaxed">
+                  Проверено дилером
+                </span>
+              </div>
+            </button>
+          </div>
+
+          {/* КАРТОЧКА: ЗАПИСЬ НА СЕРВИС ОНЛАЙН С ИЛЛЮСТРАЦИЕЙ SERVICE.PNG */}
+          <div
+            onClick={() => navigate("/ServiceBooking")}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                navigate("/ServiceBooking");
+              }
+            }}
+            className="bg-white border border-gray-200/90 hover:border-[#8cc63f] rounded-2xl overflow-hidden shadow-xs hover:shadow-md transition-all duration-300 group cursor-pointer flex flex-col justify-between"
+          >
+            {/* Верхняя часть: Заголовок и бейдж */}
+            <div className="p-5 sm:p-6 pb-2.5 sm:pb-3">
+              <div className="flex items-center justify-between gap-2 mb-2.5">
+                <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-[#f0f7e8] border border-[#8cc63f]/30 text-[#76aa34] text-xs font-semibold">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#8cc63f] animate-pulse shrink-0" />
+                  <span>Официальный сервис • Онлайн 24/7</span>
+                </div>
+                <span className="text-xs font-medium text-gray-400 bg-gray-50 px-2.5 py-1 rounded-md border border-gray-100 hidden sm:inline-block">
+                  Дилерская гарантия
+                </span>
+              </div>
+              <h3 className="font-extrabold text-lg sm:text-xl text-gray-900 leading-snug">
+                Запись на сервис онлайн
+              </h3>
+              <p className="text-xs sm:text-sm text-gray-500 mt-1 leading-relaxed">
+                ТО, диагностика, гарантийный ремонт и шиномонтаж без очередей
+              </p>
+            </div>
+
+            {/* Центральная часть: Иллюстрация service.png */}
+            <div className="w-full px-4 sm:px-6 py-3 flex items-center justify-center bg-gradient-to-b from-white via-gray-50/40 to-white">
+              <img
+                src="/service.png"
+                alt="Запись на сервис Прагматика"
+                className="w-full h-auto max-h-48 sm:max-h-56 object-contain group-hover:scale-102 transition-transform duration-300"
+              />
+            </div>
+
+            {/* Нижняя часть: Кнопка действия во всю ширину */}
+            <div className="p-5 sm:p-6 pt-2.5 sm:pt-3">
+              <div className="w-full bg-[#8cc63f] hover:bg-[#7ab82c] text-white font-bold py-3.5 sm:py-4 px-5 rounded-xl transition-colors flex items-center justify-center space-x-2 text-sm sm:text-base shadow-xs group-hover:shadow-sm">
+                <span>Записаться на сервис онлайн</span>
+                <ArrowRight size={17} className="group-hover:translate-x-1 transition-transform" />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ====================================================
+            5. ПОИСК АВТОМОБИЛЯ: НОВЫЕ И С ПРОБЕГОМ В ЗАКРУГЛЕННЫХ КВАДРАТАХ
+        ==================================================== */}
+        <section className="bg-white rounded-2xl border border-gray-200/90 p-6 sm:p-7 shadow-xs">
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <h2 className="text-lg sm:text-xl font-bold text-gray-900 tracking-tight leading-snug">
+                Поиск автомобиля
+              </h2>
+              <p className="text-xs sm:text-sm text-gray-500 mt-1 leading-relaxed">
+                Выберите категорию в наличии
+              </p>
+            </div>
+            <span className="text-xs font-semibold text-[#76aa34] bg-[#f0f7e8] px-3 py-1 rounded-lg whitespace-nowrap">
+              В наличии
+            </span>
+          </div>
+
+          {/* Карточки: фото во весь закруглённый квадрат с текстом поверх */}
+          <div className="grid grid-cols-2 gap-3.5 sm:gap-4.5 mb-5 sm:mb-6">
+            {/* Карточка: Новые авто */}
+            <button
+              type="button"
+              onClick={() => {
+                if (activeCatalogTab === "new") {
+                  navigate("/Showcase");
+                } else {
+                  setActiveCatalogTab("new");
+                }
+              }}
+              className={`relative aspect-square rounded-2xl overflow-hidden text-left transition-all duration-300 group shadow-xs cursor-pointer ${
+                activeCatalogTab === "new"
+                  ? "ring-3 ring-[#8cc63f] shadow-md"
+                  : "ring-1 ring-black/10 hover:ring-[#8cc63f]/60 hover:shadow-sm"
+              }`}
+            >
+              {/* Фотография на всю площадь карточки */}
+              <img
+                src="/new-auto-1.png"
+                alt="Новые автомобили"
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              />
+
+              {/* Затемняющий градиент снизу под текст */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent pointer-events-none" />
+
+              {/* Бейдж количества авто вверху */}
+              <span className="absolute top-3 left-3 bg-black/60 backdrop-blur-md text-white text-xs font-bold px-2.5 py-1 rounded-lg border border-white/20 whitespace-nowrap shadow-xs">
+                {newCount || "1 177"} авто
+              </span>
+
+              {/* Индикатор выбора */}
+              {activeCatalogTab === "new" && (
+                <span className="absolute top-3 right-3 w-6 h-6 bg-[#8cc63f] text-white rounded-full flex items-center justify-center shadow-md">
+                  <CheckCircle2 size={15} strokeWidth={2.5} />
+                </span>
+              )}
+
+              {/* Текст снизу */}
+              <div className="absolute bottom-3.5 left-3.5 right-3.5 flex items-center justify-between">
+                <div className="flex items-center space-x-1.5">
+                  <span className="text-white font-bold text-sm sm:text-base drop-shadow-sm leading-tight">
+                    Новые авто
+                  </span>
+                  <ChevronRight
+                    size={16}
+                    className="text-white/90 drop-shadow-sm group-hover:translate-x-1 transition-transform shrink-0"
+                  />
+                </div>
+              </div>
+            </button>
+
+            {/* Карточка: С пробегом */}
+            <button
+              type="button"
+              onClick={() => {
+                if (activeCatalogTab === "used") {
+                  localStorage.removeItem("usedFilters");
+                  localStorage.removeItem("usedVisibleCount");
+                  localStorage.removeItem("scrollToUsedCarId");
+                  navigate("/ShowcaseUsed");
+                } else {
+                  setActiveCatalogTab("used");
+                }
+              }}
+              className={`relative aspect-square rounded-2xl overflow-hidden text-left transition-all duration-300 group shadow-xs cursor-pointer ${
+                activeCatalogTab === "used"
+                  ? "ring-3 ring-[#8cc63f] shadow-md"
+                  : "ring-1 ring-black/10 hover:ring-[#8cc63f]/60 hover:shadow-sm"
+              }`}
+            >
+              {/* Фотография на всю площадь карточки */}
+              <img
+                src="/auto-probeg-1.png"
+                alt="Автомобили с пробегом"
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              />
+
+              {/* Затемняющий градиент снизу под текст */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent pointer-events-none" />
+
+              {/* Бейдж количества авто вверху */}
+              <span className="absolute top-3 left-3 bg-orange-600/90 backdrop-blur-md text-white text-xs font-bold px-2.5 py-1 rounded-lg border border-white/20 whitespace-nowrap shadow-xs">
+                {usedCount || "519"} авто
+              </span>
+
+              {/* Индикатор выбора */}
+              {activeCatalogTab === "used" && (
+                <span className="absolute top-3 right-3 w-6 h-6 bg-[#8cc63f] text-white rounded-full flex items-center justify-center shadow-md">
+                  <CheckCircle2 size={15} strokeWidth={2.5} />
+                </span>
+              )}
+
+              {/* Текст снизу */}
+              <div className="absolute bottom-3.5 left-3.5 right-3.5 flex items-center justify-between">
+                <div className="flex items-center space-x-1.5">
+                  <span className="text-white font-bold text-sm sm:text-base drop-shadow-sm leading-tight">
+                    С пробегом
+                  </span>
+                  <ChevronRight
+                    size={16}
+                    className="text-white/90 drop-shadow-sm group-hover:translate-x-1 transition-transform shrink-0"
+                  />
+                </div>
+              </div>
+            </button>
+          </div>
+
+          <p className="text-xs sm:text-sm text-gray-600 mb-5 leading-relaxed">
+            {activeCatalogTab === "new"
+              ? "Все комплектации с официальной заводской гарантией. Программы субсидированного кредитования и обмен по Трейд-ин."
+              : "Автомобили проверены по 120 пунктам технической диагностики с подтвержденной юридической чистотой."}
+          </p>
+
+          <button
+            onClick={() => {
+              if (activeCatalogTab === "new") {
+                navigate("/Showcase");
+              } else {
+                localStorage.removeItem("usedFilters");
+                localStorage.removeItem("usedVisibleCount");
+                localStorage.removeItem("scrollToUsedCarId");
+                navigate("/ShowcaseUsed");
+              }
+            }}
+            className="w-full bg-[#8cc63f] hover:bg-[#7ab82c] text-white font-bold py-3.5 sm:py-4 px-6 rounded-xl transition-colors flex items-center justify-center space-x-2 text-sm sm:text-base shadow-xs cursor-pointer"
+          >
+            <span className="whitespace-nowrap">
+              {activeCatalogTab === "new"
+                ? `Смотреть новые автомобили (${newCount || "1 177"})`
+                : `Смотреть автомобили с пробегом (${usedCount || "519"})`}
+            </span>
+            <ArrowRight size={17} />
+          </button>
+        </section>
+
+        {/* ====================================================
+            6. КЛЮЧЕВЫЕ СЕРВИСЫ (ПЛОСКИЙ ПРОСТОРНЫЙ ГРИД)
+        ==================================================== */}
+        <section className="space-y-4">
+          <div className="flex items-center justify-between px-1">
+            <div>
+              <h2 className="text-lg sm:text-xl font-bold text-gray-900 tracking-tight leading-snug">
+                Услуги автоцентра
+              </h2>
+              <p className="text-xs sm:text-sm text-gray-500 mt-1 leading-relaxed">
+                Сервисные программы и клубные привилегии
+              </p>
+            </div>
+            <span className="text-xs text-gray-400 font-medium">
+              Для клиентов сети
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3.5 sm:gap-4.5">
+            {/* Шины и диски */}
+            <button
+              onClick={navigateTo("/tires-wheels")}
+              className="bg-white border border-gray-200/90 hover:border-[#8cc63f] rounded-2xl p-5 sm:p-6 text-left transition-all flex flex-col justify-between shadow-xs hover:shadow-sm group cursor-pointer"
+            >
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-[#f4f9ed] flex items-center justify-center p-2 mb-4 group-hover:scale-105 transition-all shadow-xs">
+                <img
+                  src="/icons/tires.png"
+                  alt="Шины и диски"
+                  className="w-full h-full object-contain"
+                />
+              </div>
+              <div>
+                <span className="font-bold text-base sm:text-lg text-gray-900 block mb-1.5 group-hover:text-[#76aa34] transition-colors leading-snug">
+                  Шины и диски
+                </span>
+                <span className="text-xs sm:text-sm text-gray-500 block leading-relaxed">
+                  Шиномонтаж и сезонное хранение
+                </span>
+              </div>
+            </button>
+
+            {/* Акции и скидки */}
+            <button
+              onClick={navigateTo("/offers")}
+              className="bg-white border border-gray-200/90 hover:border-orange-300 rounded-2xl p-5 sm:p-6 text-left transition-all flex flex-col justify-between shadow-xs hover:shadow-sm group cursor-pointer"
+            >
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-[#fff7ed] flex items-center justify-center p-2 mb-4 group-hover:scale-105 transition-all shadow-xs">
+                <img
+                  src="/icons/offers.png"
+                  alt="Акции и выгода"
+                  className="w-full h-full object-contain"
+                />
+              </div>
+              <div>
+                <span className="font-bold text-base sm:text-lg text-gray-900 block mb-1.5 group-hover:text-orange-600 transition-colors leading-snug">
+                  Акции и выгода
+                </span>
+                <span className="text-xs sm:text-sm text-gray-500 block leading-relaxed">
+                  Специальные условия месяца
+                </span>
+              </div>
+            </button>
+
+            {/* Новости Прагматика */}
+            <button
+              onClick={navigateTo("/NewsList")}
+              className="bg-white border border-gray-200/90 hover:border-blue-300 rounded-2xl p-5 sm:p-6 text-left transition-all flex flex-col justify-between shadow-xs hover:shadow-sm group cursor-pointer"
+            >
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-[#f0f7ff] flex items-center justify-center p-2 mb-4 group-hover:scale-105 transition-all shadow-xs">
+                <img
+                  src="/icons/news.png"
+                  alt="Новости"
+                  className="w-full h-full object-contain"
+                />
+              </div>
+              <div>
+                <span className="font-bold text-base sm:text-lg text-gray-900 block mb-1.5 group-hover:text-blue-600 transition-colors leading-snug">
+                  Новости
+                </span>
+                <span className="text-xs sm:text-sm text-gray-500 block leading-relaxed">
+                  События и обзоры новинок
+                </span>
+              </div>
+            </button>
+
+            {/* Бонусный счёт */}
+            <button
+              onClick={navigateTo("/BonusPage")}
+              className="bg-white border border-gray-200/90 hover:border-[#8cc63f] rounded-2xl p-5 sm:p-6 text-left transition-all flex flex-col justify-between shadow-xs hover:shadow-sm group cursor-pointer"
+            >
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-[#fdf8ec] flex items-center justify-center p-2 mb-4 group-hover:scale-105 transition-all shadow-xs">
+                <img
+                  src="/icons/bonus.png"
+                  alt="Бонусный клуб"
+                  className="w-full h-full object-contain"
+                />
+              </div>
+              <div>
+                <span className="font-bold text-base sm:text-lg text-gray-900 block mb-1.5 group-hover:text-[#76aa34] transition-colors leading-snug">
+                  Бонусный клуб
+                </span>
+                <span className="text-xs sm:text-sm text-gray-500 block leading-relaxed">
+                  Правила начисления баллов
+                </span>
+              </div>
+            </button>
+          </div>
+        </section>
+
+        {/* ====================================================
+            7. КОНТАКТЫ И СПРАВОЧНАЯ
+        ==================================================== */}
+        <section className="bg-white rounded-2xl border border-gray-200/90 p-6 sm:p-7 shadow-xs">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 mb-5">
+            <div>
+              <h2 className="text-lg sm:text-xl font-bold text-gray-900 tracking-tight leading-snug">
+                Контакты автоцентров
+              </h2>
+              <p className="text-xs sm:text-sm text-gray-500 mt-1 leading-relaxed">
+                Сеть дилерских центров и сервисных станций
+              </p>
+            </div>
+            <button
+              onClick={() => navigate("/contacts")}
+              className="text-xs sm:text-sm font-semibold text-[#76aa34] hover:underline self-start sm:self-auto whitespace-nowrap cursor-pointer"
+            >
+              Все адреса
+            </button>
+          </div>
+
+          <div className="flex items-center justify-between pt-4 sm:pt-5 border-t border-gray-100 gap-3">
+            <div className="flex items-center space-x-2 text-xs sm:text-sm text-gray-600 font-medium">
+              <Clock size={16} className="text-[#8cc63f] shrink-0" />
+              <span className="whitespace-nowrap">Ежедневно 09:00 — 21:00</span>
+            </div>
+
+            <a
+              href="tel:+78125651261"
+              className="bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs sm:text-sm font-bold px-4 py-2.5 rounded-xl transition-colors whitespace-nowrap"
+            >
+              Позвонить
+            </a>
+          </div>
+        </section>
+      </main>
+
+      {/* Нижняя навигация */}
       <BottomNav />
     </div>
   );

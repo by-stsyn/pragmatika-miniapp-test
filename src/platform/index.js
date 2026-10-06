@@ -40,6 +40,7 @@ export const platform = isMAX
       }),
       getStartParam: () => "local_test",
       showAlert: (msg) => console.log("ALERT:", msg),
+      isMax: () => false,
       platform: "local",
     };
 

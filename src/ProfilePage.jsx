@@ -84,7 +84,14 @@ const [insuranceSending, setInsuranceSending] = useState(false);
         );
         if (res.ok) {
           const data = await res.json();
-          setBonus(data.card || null);
+          const cardData = data.card || null;
+          setBonus(cardData);
+          if (cardData) {
+            try {
+              localStorage.setItem("userBonus", JSON.stringify(cardData));
+              sessionStorage.setItem("userBonus", JSON.stringify(cardData));
+            } catch (e) {}
+          }
         }
       } finally {
         setLoading(false);

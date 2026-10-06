@@ -462,9 +462,12 @@ useEffect(() => {
         max={yearRange[1]}
         values={filters.year}
         onChange={(values) => setFilters({ ...filters, year: values })}
-        renderTrack={({ props, children }) => (
-          <div
-            {...props}
+        renderTrack={({ props, children }) => {
+          const { key, ...restProps } = props;
+          return (
+            <div
+              key={key}
+              {...restProps}
         className="h-2 my-4 rounded"
         style={{
           ...props.style,
@@ -480,10 +483,14 @@ useEffect(() => {
           >
             {children}
           </div>
-        )}
-        renderThumb={({ props }) => (
-          <div
-           {...props}
+          );
+        }}
+        renderThumb={({ props }) => {
+          const { key, ...restProps } = props;
+          return (
+            <div
+              key={key}
+              {...restProps}
         className="rounded-full shadow cursor-pointer"
         style={{
           ...props.style,
@@ -496,8 +503,8 @@ useEffect(() => {
           alignItems: 'center',
         }}
           />
-        )}
-      />
+          );
+        }} />
     </div>
 
     {/* Пробег */}
@@ -511,9 +518,12 @@ useEffect(() => {
         max={runRange[1]}
         values={filters.run}
         onChange={(values) => setFilters({ ...filters, run: values })}
-        renderTrack={({ props, children }) => (
-          <div
-            {...props}
+        renderTrack={({ props, children }) => {
+          const { key, ...restProps } = props;
+          return (
+            <div
+              key={key}
+              {...restProps}
         className="h-2 my-4 rounded"
         style={{
           ...props.style,
@@ -529,10 +539,14 @@ useEffect(() => {
           >
             {children}
           </div>
-        )}
-        renderThumb={({ props }) => (
-          <div
-           {...props}
+          );
+        }}
+        renderThumb={({ props }) => {
+          const { key, ...restProps } = props;
+          return (
+            <div
+              key={key}
+              {...restProps}
         className="rounded-full shadow cursor-pointer"
         style={{
           ...props.style,
@@ -545,8 +559,8 @@ useEffect(() => {
           alignItems: 'center',
         }}
           />
-        )}
-      />
+          );
+        }} />
     </div>
 
   </div>
@@ -560,9 +574,12 @@ useEffect(() => {
     max={priceRange[1]}
     values={filters.price}
     onChange={(values) => setFilters({ ...filters, price: values })}
-    renderTrack={({ props, children }) => (
-      <div
-        {...props}
+    renderTrack={({ props, children }) => {
+          const { key, ...restProps } = props;
+          return (
+            <div
+              key={key}
+              {...restProps}
         className="h-2 my-4 rounded"
         style={{
           ...props.style,
@@ -578,10 +595,14 @@ useEffect(() => {
       >
         {children}
       </div>
-    )}
-    renderThumb={({ props }) => (
-      <div
-        {...props}
+          );
+        }}
+        renderThumb={({ props }) => {
+          const { key, ...restProps } = props;
+          return (
+            <div
+              key={key}
+              {...restProps}
         className="rounded-full shadow cursor-pointer"
         style={{
           ...props.style,
@@ -594,8 +615,8 @@ useEffect(() => {
           alignItems: 'center',
         }}
       />
-    )}
-  />
+          );
+        }} />
 </div>
   {/* Кнопка сброса фильтров */}
   <div className="col-span-2 flex justify-center mt-4">
@@ -853,9 +874,12 @@ useEffect(() => {
         max={yearRange[1]}
         values={filters.year}
         onChange={(values) => setFilters({ ...filters, year: values })}
-        renderTrack={({ props, children }) => (
-          <div
-            {...props}
+        renderTrack={({ props, children }) => {
+          const { key, ...restProps } = props;
+          return (
+            <div
+              key={key}
+              {...restProps}
         className="h-2 my-4 rounded"
         style={{
           ...props.style,
@@ -871,10 +895,14 @@ useEffect(() => {
           >
             {children}
           </div>
-        )}
-        renderThumb={({ props }) => (
-          <div
-           {...props}
+          );
+        }}
+        renderThumb={({ props }) => {
+          const { key, ...restProps } = props;
+          return (
+            <div
+              key={key}
+              {...restProps}
         className="rounded-full shadow cursor-pointer"
         style={{
           ...props.style,
@@ -887,8 +915,8 @@ useEffect(() => {
           alignItems: 'center',
         }}
           />
-        )}
-      />
+          );
+        }} />
     </div>
 
     {/* Пробег */}
@@ -902,9 +930,12 @@ useEffect(() => {
         max={runRange[1]}
         values={filters.run}
         onChange={(values) => setFilters({ ...filters, run: values })}
-        renderTrack={({ props, children }) => (
-          <div
-            {...props}
+        renderTrack={({ props, children }) => {
+          const { key, ...restProps } = props;
+          return (
+            <div
+              key={key}
+              {...restProps}
         className="h-2 my-4 rounded"
         style={{
           ...props.style,
@@ -920,10 +951,14 @@ useEffect(() => {
           >
             {children}
           </div>
-        )}
-        renderThumb={({ props }) => (
-          <div
-           {...props}
+          );
+        }}
+        renderThumb={({ props }) => {
+          const { key, ...restProps } = props;
+          return (
+            <div
+              key={key}
+              {...restProps}
         className="rounded-full shadow cursor-pointer"
         style={{
           ...props.style,
@@ -936,8 +971,8 @@ useEffect(() => {
           alignItems: 'center',
         }}
           />
-        )}
-      />
+          );
+        }} />
     </div>
 
   </div>
@@ -951,9 +986,12 @@ useEffect(() => {
     max={priceRange[1]}
     values={filters.price}
     onChange={(values) => setFilters({ ...filters, price: values })}
-    renderTrack={({ props, children }) => (
-      <div
-        {...props}
+    renderTrack={({ props, children }) => {
+          const { key, ...restProps } = props;
+          return (
+            <div
+              key={key}
+              {...restProps}
         className="h-2 my-4 rounded"
         style={{
           ...props.style,
@@ -969,10 +1007,14 @@ useEffect(() => {
       >
         {children}
       </div>
-    )}
-    renderThumb={({ props }) => (
-      <div
-        {...props}
+          );
+        }}
+        renderThumb={({ props }) => {
+          const { key, ...restProps } = props;
+          return (
+            <div
+              key={key}
+              {...restProps}
         className="rounded-full shadow cursor-pointer"
         style={{
           ...props.style,
@@ -985,8 +1027,8 @@ useEffect(() => {
           alignItems: 'center',
         }}
       />
-    )}
-  />
+          );
+        }} />
 </div>
 
       </div>

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import InputMask from "react-input-mask";
+import { formatRussianPhone } from "/src/utils/phone";
 import { ArrowLeft, CheckCircle } from "lucide-react";
 import BottomNav from "/src/components/BottomNav";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -1059,19 +1059,16 @@ await createDeal(dealFields);
     <FieldLoader />
   </div>
 ) : (
-  <InputMask
-    mask="+7(999)999-99-99"
+  <input
+    type="tel"
+    className={inputClass}
+    placeholder="+7 (___) ___-__-__"
     value={form.phone}
-    onChange={update("phone")}
-  >
-    {props =>
-      <input
-        {...props}
-        className={inputClass}
-        placeholder="Телефон"
-      />
-    }
-  </InputMask>
+    onChange={(e) => {
+      const formatted = formatRussianPhone(e.target.value);
+      setForm((prev) => ({ ...prev, phone: formatted }));
+    }}
+  />
 )}
 
             {clientLoading ? (
@@ -1214,7 +1211,7 @@ await createDeal(dealFields);
               />
             )}
 
-            <button type="submit" type="submit"
+            <button type="submit"
             disabled={submitting}
            className={`w-full py-3 rounded-xl text-white transition
            ${
