@@ -11,10 +11,16 @@ module.exports = {
         condensed: ['"Roboto Condensed"', 'sans-serif'],
       },
       colors: {
+        'pragmatika-green': '#8cc63f',
+        'pragmatika-dark': '#425766',
+        'pragmatika-light': '#87a5b6',
+        'pragmatika-black': '#000000',
         pragmatika: {
           DEFAULT: '#8cc63f',
-          dark: '#76aa34',
-          light: '#a4d95b',
+          green: '#8cc63f',
+          dark: '#425766',
+          light: '#87a5b6',
+          black: '#000000',
           gray: '#81869a',
         },
       },
