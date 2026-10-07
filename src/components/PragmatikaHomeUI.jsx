@@ -1,6 +1,8 @@
 import React from 'react';
 import {
   Car,
+  Home,
+  User,
   Wrench,
   ShieldCheck,
   Calendar,
@@ -446,16 +448,15 @@ export function PragmatikaBottomTabBar({
   onTabChange = () => {},
 }) {
   const tabs = [
-    { id: 'home', label: 'Главная', icon: Car },
+    { id: 'home', label: 'Главная', icon: Home },
     { id: 'offers', label: 'Акции', icon: Flame },
-    { id: 'service', label: 'Сервис', icon: Wrench },
-    { id: 'profile', label: 'Профиль', icon: FileText },
-    { id: 'contacts', label: 'Контакты', icon: Phone },
+    { id: 'call', label: 'Звонок', icon: Phone },
+    { id: 'profile', label: 'Кабинет', icon: User },
   ];
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white/90 backdrop-blur-md border-t border-slate-200/80 safe-bottom shadow-lg shadow-black/5">
-      <div className="max-w-md mx-auto grid grid-cols-5 h-16 items-center px-1">
+      <div className="max-w-md mx-auto grid grid-cols-4 h-16 items-center px-1">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;

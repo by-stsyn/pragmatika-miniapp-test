@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, User, ShieldCheck } from "lucide-react";
 import BottomNav from "/src/components/BottomNav";
 import { useNavigate } from "react-router-dom";
 import { BRANDS_MODELS } from "/src/data/brands";
@@ -340,11 +340,24 @@ const [insuranceSending, setInsuranceSending] = useState(false);
 
       {/* Профиль */}
       <div className="text-center mb-6">
-        <img
-          src={user?.photo || "https://via.placeholder.com/150"}
-          className="w-24 h-24 rounded-full mx-auto mb-3 border object-cover ring-2 ring-[#8cc63f]/30"
-          alt="Профиль"
-        />
+        <div className="w-24 h-24 rounded-full mx-auto mb-3 ring-4 ring-[#8cc63f]/25 shadow-md overflow-hidden bg-[#f0f7e8] flex items-center justify-center relative">
+          {user?.photo ? (
+            <img
+              src={user.photo}
+              className="w-full h-full object-cover"
+              alt="Профиль"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-[#6fa02f] font-bold text-3xl">
+              {user?.firstName || user?.first_name ? (
+                (user.firstName || user.first_name)[0].toUpperCase()
+              ) : (
+                <User size={38} />
+              )}
+            </div>
+          )}
+          <span className="w-4 h-4 bg-[#8cc63f] rounded-full border-2 border-white absolute bottom-1 right-1 shadow-xs" />
+        </div>
         <h2 className="text-2xl font-bold text-[#425766] break-words">
           {user?.firstName || user?.first_name
             ? `${user.firstName || user.first_name} ${user.lastName || user.last_name || ""}`.trim()

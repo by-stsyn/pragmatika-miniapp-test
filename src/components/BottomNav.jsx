@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Car, Flame, Wrench, FileText, Phone, X, Sparkles } from "lucide-react";
+import { Home, Flame, Phone, User, X } from "lucide-react";
 import { formatRussianPhone } from "/src/utils/phone";
 
 export default function BottomNav() {
@@ -58,7 +58,7 @@ export default function BottomNav() {
     {
       id: "home",
       label: "Главная",
-      icon: Car,
+      icon: Home,
       path: "/",
       isActive: location.pathname === "/",
     },
@@ -72,23 +72,16 @@ export default function BottomNav() {
         location.pathname.startsWith("/offer/"),
     },
     {
-      id: "service",
-      label: "Сервис",
-      icon: Wrench,
-      path: "/service",
-      isActive: location.pathname === "/service",
-    },
-    {
       id: "call",
       label: "Звонок",
       icon: Phone,
       onClick: () => setShowCallback(true),
-      isAction: true,
+      isActive: false,
     },
     {
       id: "profile",
       label: "Кабинет",
-      icon: FileText,
+      icon: User,
       path: "/ProfilePage",
       isActive:
         location.pathname === "/ProfilePage" ||
@@ -104,34 +97,23 @@ export default function BottomNav() {
         aria-label="Основное меню"
         className="fixed bottom-0 inset-x-0 z-40 bg-white/90 backdrop-blur-md border-t border-slate-200/80 shadow-lg shadow-black/5 safe-bottom"
       >
-        <div className="max-w-md mx-auto grid grid-cols-5 h-16 items-center px-1">
+        <div className="max-w-md mx-auto grid grid-cols-4 h-16 items-center px-1">
           {navItems.map((item) => {
             const Icon = item.icon;
             const active = item.isActive;
 
-            if (item.isAction) {
-              return (
-                <button
-                  key={item.id}
-                  onClick={item.onClick}
-                  type="button"
-                  aria-label={item.label}
-                  className="flex flex-col items-center justify-center py-1 group select-none transition-transform active:scale-95 cursor-pointer"
-                >
-                  <div className="w-8 h-8 rounded-full bg-pragmatika-green/15 text-pragmatika-green flex items-center justify-center transition-transform group-hover:scale-105">
-                    <Icon className="w-4 h-4" />
-                  </div>
-                  <span className="text-[10px] font-medium text-pragmatika-dark mt-0.5 whitespace-nowrap">
-                    {item.label}
-                  </span>
-                </button>
-              );
-            }
+            const handleClick = () => {
+              if (item.onClick) {
+                item.onClick();
+              } else if (item.path) {
+                navigate(item.path);
+              }
+            };
 
             return (
               <button
                 key={item.id}
-                onClick={() => navigate(item.path)}
+                onClick={handleClick}
                 type="button"
                 aria-label={item.label}
                 className="flex flex-col items-center justify-center py-1 group select-none transition-all active:scale-95 cursor-pointer"

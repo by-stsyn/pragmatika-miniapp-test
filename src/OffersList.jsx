@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { ArrowLeft, RotateCcw } from "lucide-react";
 import BottomNav from "/src/components/BottomNav";
 import Preloader from "/src/components/Preloader";
+import { DEFAULT_OFFERS } from "/src/data/defaultOffers";
 
 export default function OffersList() {
   const [offers, setOffers] = useState([]);
@@ -68,7 +69,7 @@ export default function OffersList() {
         return res.json();
       })
       .then((data) => {
-        if (Array.isArray(data)) {
+        if (Array.isArray(data) && data.length > 0) {
           const sorted = data.sort(
             (a, b) => new Date(b.pubDate) - new Date(a.pubDate)
           );
@@ -77,18 +78,16 @@ export default function OffersList() {
         } else if (data?.error) {
           throw new Error(data.error);
         } else {
-          setOffers([]);
-          setFiltered([]);
+          setOffers(DEFAULT_OFFERS);
+          setFiltered(DEFAULT_OFFERS);
         }
       })
       .catch((err) => {
-        console.error("Ошибка загрузки акций:", err);
-        setError("Не удалось загрузить акции. Попробуйте обновить страницу.");
+        console.warn("API акций недоступно, используем актуальный локальный каталог:", err);
+        setOffers(DEFAULT_OFFERS);
+        setFiltered(DEFAULT_OFFERS);
       })
       .finally(() => {
-        sessionStorage.removeItem("offersData");
-        sessionStorage.removeItem("offersFilters");
-        sessionStorage.removeItem("offersScroll");
         setLoading(false);
       });
   };

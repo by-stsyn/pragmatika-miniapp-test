@@ -609,19 +609,21 @@ export default function Home() {
               title="Личный кабинет"
               className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white hover:bg-[#f0f7e8] border border-gray-200/90 hover:border-[#8cc63f] flex items-center justify-center transition-all shadow-2xs shrink-0 relative group cursor-pointer"
             >
-              {user?.photo ? (
-                <img
-                  src={user.photo}
-                  alt={user.first_name || "Профиль"}
-                  className="w-7 h-7 sm:w-8 sm:h-8 rounded-full object-cover"
-                />
-              ) : (
-                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#f0f7e8] group-hover:bg-[#8cc63f] text-[#6fa02f] group-hover:text-white flex items-center justify-center transition-colors">
-                  <User size={16} strokeWidth={2.2} />
-                </div>
-              )}
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full overflow-hidden flex items-center justify-center">
+                {user?.photo ? (
+                  <img
+                    src={user.photo}
+                    alt={user.first_name || "Профиль"}
+                    className="w-full h-full object-cover block"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-[#f0f7e8] group-hover:bg-[#8cc63f] text-[#6fa02f] group-hover:text-white flex items-center justify-center transition-colors">
+                    <User size={16} strokeWidth={2.2} />
+                  </div>
+                )}
+              </div>
               {/* Статусная точка бренда */}
-              <span className="w-2.5 h-2.5 bg-[#8cc63f] rounded-full border-2 border-white absolute top-0 right-0" />
+              <span className="w-2.5 h-2.5 bg-[#8cc63f] rounded-full border-2 border-white absolute top-0 right-0 z-10" />
             </button>
           </div>
         </div>
@@ -642,19 +644,21 @@ export default function Home() {
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-start space-x-3.5 min-w-0 flex-1">
                 {/* Аватар пользователя с зеленым статус-индикатором */}
-                <div className="relative shrink-0 mt-0.5">
-                  {user?.photo ? (
-                    <img
-                      src={user.photo}
-                      alt={user.first_name || "Участник"}
-                      className="w-13 h-13 rounded-2xl object-cover ring-2 ring-[#8cc63f]/30 shadow-xs"
-                    />
-                  ) : (
-                    <div className="w-13 h-13 rounded-2xl bg-[#f0f7e8] border border-[#8cc63f]/30 text-[#6fa02f] flex items-center justify-center font-bold text-lg shadow-xs">
-                      {user?.first_name ? user.first_name[0].toUpperCase() : <User size={22} />}
-                    </div>
-                  )}
-                  <span className="w-3.5 h-3.5 bg-[#8cc63f] rounded-full border-2 border-white absolute -bottom-0.5 -right-0.5 shadow-xs" />
+                <div className="relative shrink-0 w-14 h-14 min-w-[56px] min-h-[56px] max-w-[56px] max-h-[56px] mt-0.5">
+                  <div className="w-full h-full rounded-2xl overflow-hidden ring-2 ring-[#8cc63f]/30 shadow-xs bg-[#f0f7e8] flex items-center justify-center">
+                    {user?.photo ? (
+                      <img
+                        src={user.photo}
+                        alt={user.first_name || "Участник"}
+                        className="w-full h-full object-cover block"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-[#6fa02f] font-bold text-xl">
+                        {user?.first_name ? user.first_name[0].toUpperCase() : <User size={24} />}
+                      </div>
+                    )}
+                  </div>
+                  <span className="w-3.5 h-3.5 bg-[#8cc63f] rounded-full border-2 border-white absolute -bottom-0.5 -right-0.5 shadow-xs z-10" />
                 </div>
 
                 {/* Блок имени: неограниченное пространство, красивый перенос без сжатия */}
