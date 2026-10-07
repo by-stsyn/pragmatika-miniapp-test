@@ -307,11 +307,13 @@ export default function Home() {
             }));
           }
         } else {
-          setBonus(null);
+          // Если бэкенд не вернул карту, сохраняем кэш, если он уже был
           try {
-            localStorage.removeItem("userBonus");
-            sessionStorage.removeItem("userBonus");
-          } catch (e) {}
+            const cached = localStorage.getItem("userBonus");
+            if (!cached) setBonus(null);
+          } catch (e) {
+            setBonus(null);
+          }
         }
       })
       .catch(() => {})
@@ -319,12 +321,27 @@ export default function Home() {
         setBonusLoading(false);
       });
 
-    // 6. Загружаем автомобили пользователя
-    fetch(`${BASE_URL}?path=api/profile/cars&${idParam}=${uid}`)
+    // 6. Загружаем автомобили пользователя (эндпоинт 1C строго требует telegramId)
+    fetch(`${BASE_URL}?path=api/profile/cars&telegramId=${uid}`)
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         const list = Array.isArray(data?.cars) ? data.cars : [];
-        setUserCars(list);
+        if (list.length > 0) {
+          setUserCars(list);
+          try {
+            localStorage.setItem("pragmatika_user_cars", JSON.stringify(list));
+          } catch (e) {}
+        } else {
+          try {
+            const saved = localStorage.getItem("pragmatika_user_cars");
+            if (saved) {
+              const parsed = JSON.parse(saved);
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                setUserCars(parsed);
+              }
+            }
+          } catch (e) {}
+        }
       })
       .catch(() => {})
       .finally(() => {

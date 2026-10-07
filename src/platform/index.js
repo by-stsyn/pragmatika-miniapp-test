@@ -280,14 +280,17 @@ export const platform = {
 
   // Универсальный ID для бэкенда
   getId() {
-    // 1. Проверяем URL параметры
+    // 1. Проверяем URL параметры (в первую очередь явный telegramId или maxId)
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       const hashParams = new URLSearchParams(window.location.hash.replace("#", "?"));
       const urlId =
+        params.get("telegramId") ||
+        hashParams.get("telegramId") ||
+        params.get("maxId") ||
+        hashParams.get("maxId") ||
         params.get("vk_user_id") ||
         hashParams.get("vk_user_id") ||
-        params.get("telegramId") ||
         params.get("id") ||
         params.get("user_id") ||
         params.get("userId");
@@ -302,6 +305,8 @@ export const platform = {
 
     // 3. Проверяем сохраненного пользователя
     try {
+      const explicitId = localStorage.getItem("pragmatika_user_id");
+      if (explicitId) return explicitId;
       const saved = localStorage.getItem("pragmatika_user") || localStorage.getItem("vk_user");
       if (saved) {
         const parsed = JSON.parse(saved);

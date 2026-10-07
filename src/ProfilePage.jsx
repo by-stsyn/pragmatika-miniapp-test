@@ -130,9 +130,27 @@ const [insuranceSending, setInsuranceSending] = useState(false);
   useEffect(() => {
     if (!userId) return;
 
-    fetch(`${BASE_URL}?path=api/profile/cars&${idParam}=${userId}`)
+    fetch(`${BASE_URL}?path=api/profile/cars&telegramId=${userId}`)
       .then(res => res.ok && res.json())
-      .then(data => setCars(data?.cars || []));
+      .then(data => {
+        const list = Array.isArray(data?.cars) ? data.cars : [];
+        if (list.length > 0) {
+          setCars(list);
+          try {
+            localStorage.setItem("pragmatika_user_cars", JSON.stringify(list));
+          } catch (e) {}
+        } else {
+          try {
+            const saved = localStorage.getItem("pragmatika_user_cars");
+            if (saved) {
+              const parsed = JSON.parse(saved);
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                setCars(parsed);
+              }
+            }
+          } catch (e) {}
+        }
+      });
   }, [userId]);
 
   /* ===== Загрузка Рекомендаций ===== */
