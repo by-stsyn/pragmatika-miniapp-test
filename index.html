@@ -3,6 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
     <script src="https://st.max.ru/js/max-web-app.js"></script>
     <title>Pragmatika Auto</title>
     <!-- Yandex.Metrika counter -->
@@ -23,6 +24,11 @@
   let appOpenSent = false;
 
   function detectPlatform() {
+    const search = window.location.search || "";
+    if (window.vkBridge || search.includes("vk_user_id") || search.includes("vk_app_id")) {
+      return "vk";
+    }
+
     if (window.Telegram?.WebApp?.initDataUnsafe?.user) {
       return 'telegram';
     }
@@ -35,9 +41,11 @@
   }
 
   function setUserId() {
+    const params = new URLSearchParams(window.location.search);
+    const vkId = params.get("vk_user_id");
     const tgId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
     const maxId = window.MaxWebApp?.initDataUnsafe?.user?.id;
-    const uid = tgId || maxId;
+    const uid = vkId || tgId || maxId || params.get("user_id") || params.get("userId");
 
     if (uid && window.ym) {
       ym(106985052, 'setUserID', uid.toString());

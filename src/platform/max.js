@@ -1,56 +1,63 @@
 export const maxAdapter = {
+  platform: "max",
+
   init(callback) {
-    if (!window.WebApp) {
+    const webApp = window.WebApp || window.MaxWebApp;
+    if (!webApp) {
       console.warn("MAX WebApp SDK not loaded");
-      console.log("MAX RAW INIT DATA:", window.WebApp?.initDataUnsafe);
-      return;
     }
 
-    window.WebApp.ready?.(() => {
-      console.log("MAX ready");
-      if (callback) callback();
-    });
+    try {
+      webApp?.ready?.(() => {
+        if (callback) callback(this.getUser());
+      });
+      webApp?.expand?.();
+    } catch (e) {}
 
-    window.WebApp.expand?.();
+    const user = this.getUser();
+    if (callback) callback(user);
+    return user;
   },
 
   getUser() {
-    const user = window.WebApp?.initDataUnsafe?.user;
+    const webApp = window.WebApp || window.MaxWebApp;
+    const user = webApp?.initDataUnsafe?.user;
     if (!user) return null;
     return {
       id: user.id,
-      firstName: user.first_name,
-      lastName: user.last_name,
-      username: user.username,
-      language: user.language_code,
-      photo: user.photo_url,
+      firstName: user.first_name || "",
+      first_name: user.first_name || "",
+      lastName: user.last_name || "",
+      last_name: user.last_name || "",
+      username: user.username || "",
+      language: user.language_code || "ru",
+      photo: user.photo_url || "",
+      platform: "max",
     };
   },
 
-    // ← добавляем сюда
   getId() {
     const user = this.getUser();
     return user?.id || null;
   },
 
   isMax() {
-    return this.platform === "max" && !!this.getUser();
+    return true;
   },
-  // ← конец добавленных методов
 
   getStartParam() {
-    return window.WebApp?.initDataUnsafe?.start_param || null;
+    const webApp = window.WebApp || window.MaxWebApp;
+    return webApp?.initDataUnsafe?.start_param || null;
   },
 
   showAlert(text) {
-    window.WebApp?.showAlert?.(text) || alert(text);
+    const webApp = window.WebApp || window.MaxWebApp;
+    webApp?.showAlert?.(text) || alert(text);
   },
 
   openSupport(payload) {
-  const url = `https://max.ru/id7816561934_bot?start=${payload}`;
-  window.WebApp?.openLink(url);
-},
-
-  platform: "max",
-  
+    const url = `https://max.ru/id7816561934_bot?start=${payload}`;
+    const webApp = window.WebApp || window.MaxWebApp;
+    webApp?.openLink?.(url) || window.open(url, "_blank");
+  },
 };

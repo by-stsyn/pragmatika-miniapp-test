@@ -659,19 +659,21 @@ fetchClientInfo()
 
             const updated = { ...prev };
 
-            // Имя пользователя из Telegram/MAX
+            // Имя пользователя из Telegram/MAX/VK/1C
             if (user) {
+              const fullName = [
+                user.firstName || user.first_name,
+                user.lastName || user.last_name
+              ]
+              .filter(Boolean)
+              .join(" ");
+              if (fullName) {
+                updated.name = fullName;
+              }
+            }
 
-                const fullName = [
-    user.firstName || user.first_name,
-    user.lastName || user.last_name
-]
-    .filter(Boolean)
-    .join(" ");
-    console.log("FULL NAME:", fullName);
-                if (fullName) {
-                    updated.name = fullName;
-                }
+            if (!updated.name && client?.name) {
+              updated.name = client.name;
             }
 
             // Телефон

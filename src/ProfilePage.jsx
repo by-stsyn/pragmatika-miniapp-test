@@ -16,10 +16,37 @@ const REPAIR_TYPE_LABELS = {
 };
 
 export default function ProfilePage() {
-  const user = platform.getUser();
-  const userId = platform.getId(); // ← универсальный ID
+  const [user, setUser] = useState(() => platform.getUser());
+  const [userId, setUserId] = useState(() => platform.getId()); // ← универсальный ID
   const idParam = platform?.isMax?.() ? "maxId" : "telegramId";
-  console.log("ID PARAM:", idParam, userId);
+  
+  useEffect(() => {
+    const unsub = platform.subscribe?.((u) => {
+      if (u) {
+        setUser(u);
+        if (u.id) setUserId(u.id);
+      }
+    });
+
+    const currentId = platform.getId();
+    if (currentId) setUserId(currentId);
+
+    // Подгрузка CRM данных клиента
+    if (currentId) {
+      fetch(`${BASE_URL}?path=communication/contact/client&${idParam}=${currentId}`)
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (data?.data) {
+            platform.updateFromClientInfo?.(data.data);
+          }
+        })
+        .catch(() => {});
+    }
+
+    return () => {
+      if (unsub) unsub();
+    };
+  }, []);
   const [bonus, setBonus] = useState(null);
   const [cars, setCars] = useState([]);
   const [recommendations, setRecommendations] = useState({});
@@ -315,9 +342,19 @@ const [insuranceSending, setInsuranceSending] = useState(false);
       <div className="text-center mb-6">
         <img
           src={user?.photo || "https://via.placeholder.com/150"}
-          className="w-24 h-24 rounded-full mx-auto mb-3 border object-cover"
+          className="w-24 h-24 rounded-full mx-auto mb-3 border object-cover ring-2 ring-[#8cc63f]/30"
+          alt="Профиль"
         />
-        <h2 className="text-2xl font-semibold">{user?.firstName || user?.first_name}</h2>
+        <h2 className="text-2xl font-bold text-[#425766] break-words">
+          {user?.firstName || user?.first_name
+            ? `${user.firstName || user.first_name} ${user.lastName || user.last_name || ""}`.trim()
+            : userId
+            ? `Клиент #${userId}`
+            : "Клиент Прагматика"}
+        </h2>
+        <p className="text-xs text-gray-400 mt-1">
+          {bonus?.number ? `Карта лояльности № ${bonus.number}` : userId ? `ID: ${userId}` : ""}
+        </p>
       </div>
 
       {/* Бонусы */}
