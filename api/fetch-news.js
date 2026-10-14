@@ -5,7 +5,7 @@ export default async function handler(req, res) {
   const RSS_URL = "https://www.pragmaticar.ru/rss.xml"; // <- укажи реальный URL фида
 
   try {
-    const response = await fetch(RSS_URL, { timeout: 10000 });
+    const response = await fetch(RSS_URL, { signal: AbortSignal.timeout(10000) });
     if (!response.ok) {
       console.error("fetch-news: feed response not ok", response.status, response.statusText);
       return res.status(502).json({ error: "Не удалось получить RSS-фид", status: response.status });

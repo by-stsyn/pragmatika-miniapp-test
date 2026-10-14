@@ -3,9 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
     <script src="https://st.max.ru/js/max-web-app.js"></script>
     <title>Pragmatika Auto</title>
+    <meta name="description" content="Pragmatika Auto Telegram & MAX Mini App - онлайн-витрина автомобилей с пробегом и новых авто, запись на шиномонтаж и сервис, каталог акций и спецпредложений." />
+    <meta property="og:title" content="Pragmatika Auto" />
+    <meta property="og:description" content="Pragmatika Auto Telegram & MAX Mini App - онлайн-витрина автомобилей с пробегом и новых авто, запись на шиномонтаж и сервис, каталог акций и спецпредложений." />
     <!-- Yandex.Metrika counter -->
 <script type="text/javascript">
     (function(m,e,t,r,i,k,a){
@@ -24,11 +26,6 @@
   let appOpenSent = false;
 
   function detectPlatform() {
-    const search = window.location.search || "";
-    if (window.vkBridge || search.includes("vk_user_id") || search.includes("vk_app_id")) {
-      return "vk";
-    }
-
     if (window.Telegram?.WebApp?.initDataUnsafe?.user) {
       return 'telegram';
     }
@@ -41,11 +38,9 @@
   }
 
   function setUserId() {
-    const params = new URLSearchParams(window.location.search);
-    const vkId = params.get("vk_user_id");
     const tgId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
     const maxId = window.MaxWebApp?.initDataUnsafe?.user?.id;
-    const uid = vkId || tgId || maxId || params.get("user_id") || params.get("userId");
+    const uid = tgId || maxId;
 
     if (uid && window.ym) {
       ym(106985052, 'setUserID', uid.toString());

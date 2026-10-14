@@ -1,4 +1,8 @@
 {
   "name": "Pragmatika Auto",
-  "description": "Pragmatika Auto Mini App - Car catalog, booking, services, tires and offers."
+  "description": "Pragmatika Auto Telegram & MAX Mini App - онлайн-витрина автомобилей с пробегом и новых авто, запись на шиномонтаж и сервис, каталог акций и спецпредложений.",
+  "permissions": [],
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }

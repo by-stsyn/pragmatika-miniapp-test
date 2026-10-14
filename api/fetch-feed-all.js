@@ -1,73 +1,79 @@
 import { DOMParser, XMLSerializer } from "xmldom";
 
-const FEED_URL = "https://export.maxposter.ru/dealer-export/1983-38233.xml";
-const CACHE_TTL = 5 * 60 * 1000; // 5 минут
-
-let cachedXml = null;
-let cachedCount = null;
-let cachedAt = 0;
-
 export default async function handler(req, res) {
-  const now = Date.now();
-
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Cache-Control", "public, max-age=300");
-
-  // 1. Быстрый ответ из кеша для счетчика
-  if (req.query.count === "1" && cachedCount !== null && now - cachedAt < CACHE_TTL) {
-    return res.status(200).json({ count: cachedCount });
-  }
-
-  // 2. Быстрый ответ из кеша для полного XML
-  if (req.query.count !== "1" && cachedXml !== null && now - cachedAt < CACHE_TTL) {
-    res.setHeader("Content-Type", "application/xml; charset=utf-8");
-    return res.status(200).send(cachedXml);
-  }
+  const feeds = [
+    {
+      url: "https://export.maxposter.ru/dealer-export/1983-38233.xml",
+      dealer: "Все локации",
+    },
+  ];
 
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 20000);
+    const vehiclesXml = [];
+    let totalCount = 0;
 
-    const response = await fetch(FEED_URL, {
-      signal: controller.signal,
-      headers: {
-        "User-Agent": "Mozilla/5.0 Pragmatika MiniApp",
-        "Accept": "application/xml,text/xml,*/*",
-      },
-    });
+    const validFeeds = feeds.filter((f) => f.url);
 
-    clearTimeout(timeout);
+    for (const { url, dealer } of validFeeds) {
+      try {
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error(`Ошибка загрузки фида: ${url}`);
+        }
 
-    if (!response.ok) {
-      throw new Error(`Ошибка загрузки фида: HTTP ${response.status}`);
+        const xmlText = await response.text();
+        const doc = new DOMParser().parseFromString(xmlText, "text/xml");
+
+        // ✅ vehicle — правильно
+        const vehicles = Array.from(doc.getElementsByTagName("vehicle"));
+
+        totalCount += vehicles.length;
+        console.log(`Фид ${dealer}: ${vehicles.length} автомобилей`);
+
+        // 👉 если нужен ТОЛЬКО счётчик — дальше не обрабатываем XML
+        if (req.query.count === "1") {
+          continue;
+        }
+
+        for (const vehicle of vehicles) {
+          const dealerNode = doc.createElement("dealer");
+          dealerNode.appendChild(doc.createTextNode(dealer));
+          vehicle.appendChild(dealerNode);
+
+          vehiclesXml.push(vehicle);
+        }
+      } catch (feedErr) {
+        console.error(`Ошибка обработки фида ${dealer}:`, feedErr.message);
+      }
     }
 
-    const xmlText = await response.text();
-    const doc = new DOMParser().parseFromString(xmlText, "text/xml");
-    const vehicles = Array.from(doc.getElementsByTagName("vehicle"));
-
-    cachedCount = vehicles.length;
-    cachedXml = xmlText;
-    cachedAt = now;
-
+    // 👉 только счётчик
     if (req.query.count === "1") {
-      return res.status(200).json({ count: cachedCount });
+      return res.status(200).json({
+        count: totalCount,
+      });
     }
+
+    if (!vehiclesXml.length) {
+      return res
+        .status(500)
+        .json({ error: "Не удалось загрузить ни одного автомобиля" });
+    }
+
+    const serializer = new XMLSerializer();
+    const vehiclesXmlText = vehiclesXml
+      .map((v) => serializer.serializeToString(v))
+      .join("\n");
+
+    const finalXml = `<?xml version="1.0" encoding="UTF-8"?>
+<vehicles>
+${vehiclesXmlText}
+</vehicles>`;
 
     res.setHeader("Content-Type", "application/xml; charset=utf-8");
-    return res.status(200).send(cachedXml);
+    res.status(200).send(finalXml);
   } catch (error) {
-    console.error("fetch-feed-all error:", error.message);
-
-    // Если есть даже устаревший кеш — возвращаем его вместо падения
-    if (cachedXml) {
-      if (req.query.count === "1") {
-        return res.status(200).json({ count: cachedCount || 1177 });
-      }
-      res.setHeader("Content-Type", "application/xml; charset=utf-8");
-      return res.status(200).send(cachedXml);
-    }
-
-    return res.status(500).json({ error: error.message });
+    console.error("Глобальная ошибка:", error.message);
+    res.status(500).json({ error: error.message });
   }
 }

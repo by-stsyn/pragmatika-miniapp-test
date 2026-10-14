@@ -250,8 +250,17 @@ if (isTireWheelOrder) {
   };
 
   try {
-    // Сначала отправляем письмо — текущая логика заявок сохраняется.
-    await transporter.sendMail(mailOptions);
+    // Отправляем письмо, если настроен SMTP, иначе логируем в консоль
+    if (process.env.SMTP_USER || process.env.MAIL_USER) {
+      await transporter.sendMail(mailOptions);
+    } else {
+      console.warn("⚠️ [AI Studio] SMTP credentials not configured. Booking logged to server:", {
+        subject,
+        recipients,
+        name,
+        phone,
+      });
+    }
 
     // Для заказа шин/дисков дополнительно создаём Заказ клиента в 1С АА6
     // через Render-прокси. URL можно переопределить переменной окружения.
