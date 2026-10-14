@@ -1,6 +1,9 @@
 import React, { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Home, Gift, Phone, MapPin, User, X, CheckCircle, PhoneCall } from "lucide-react";
+import { Home, Gift, Phone, MapPin, User, X, CheckCircle, PhoneCall, Copy, Check } from "lucide-react";
+
+const DEALER_PHONE_DISPLAY = "+7 (812) 336-36-36";
+const DEALER_PHONE_RAW = "+78123363636";
 
 export default function BottomNav() {
   const navigate = useNavigate();
@@ -12,31 +15,93 @@ export default function BottomNav() {
   const [name, setName] = useState("");
   const [status, setStatus] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyPhone = async () => {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(DEALER_PHONE_RAW);
+      } else {
+        const textArea = document.createElement("textarea");
+        textArea.value = DEALER_PHONE_RAW;
+        textArea.style.position = "fixed";
+        textArea.style.opacity = "0";
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textArea);
+      }
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    } catch (err) {
+      console.error("Failed to copy phone:", err);
+    }
+  };
+
+  const handleDirectCall = (e) => {
+    // В Telegram WebApp ссылки tel: часто блокируются вебвью, пробуем через WebApp.openLink
+    const telUri = `tel:${DEALER_PHONE_RAW}`;
+    if (window.Telegram?.WebApp?.openLink) {
+      try {
+        window.Telegram.WebApp.openLink(telUri);
+        return;
+      } catch (err) {
+        console.warn("Telegram openLink error:", err);
+      }
+    }
+    window.location.href = telUri;
+  };
 
   const handlePhoneChange = (e) => {
-    let val = e.target.value.replace(/\D/g, "");
-    if (!val) {
+    const inputVal = e.target.value;
+    const prevVal = phone || "";
+
+    if (!inputVal) {
       setPhone("");
       return;
     }
-    if (val.startsWith("7") || val.startsWith("8")) {
-      val = val.slice(1);
-    }
-    val = val.slice(0, 10);
 
-    let formatted = "+7";
-    if (val.length > 0) {
-      formatted += ` (${val.slice(0, 3)}`;
+    const isDeleting = inputVal.length < prevVal.length;
+    let rawDigits = inputVal.replace(/\D/g, "");
+    const prevDigits = prevVal.replace(/\D/g, "");
+
+    // Если нажат Backspace на служебном символе (скобка, дефис, пробел),
+    // удаляем предшествующую цифру
+    if (isDeleting && rawDigits === prevDigits && rawDigits.length > 0) {
+      rawDigits = rawDigits.slice(0, -1);
     }
-    if (val.length >= 3) {
-      formatted += `) ${val.slice(3, 6)}`;
+
+    let digits = rawDigits;
+    if (digits.startsWith("7") || digits.startsWith("8")) {
+      digits = digits.slice(1);
     }
-    if (val.length >= 6) {
-      formatted += `-${val.slice(6, 8)}`;
+
+    // Если стираем и цифр не осталось — полностью сбрасываем поле
+    if (isDeleting && digits.length === 0) {
+      setPhone("");
+      return;
     }
-    if (val.length >= 8) {
-      formatted += `-${val.slice(8, 10)}`;
+
+    digits = digits.slice(0, 10);
+
+    let formatted = "";
+    if (digits.length > 0) {
+      formatted = `+7 (${digits.slice(0, 3)}`;
+      if (digits.length > 3) {
+        formatted += `) ${digits.slice(3, 6)}`;
+      } else if (digits.length === 3 && !isDeleting) {
+        formatted += ") ";
+      }
+      if (digits.length > 6) {
+        formatted += `-${digits.slice(6, 8)}`;
+      }
+      if (digits.length > 8) {
+        formatted += `-${digits.slice(8, 10)}`;
+      }
+    } else if (rawDigits === "7" || rawDigits === "8" || inputVal.includes("+7")) {
+      formatted = "+7 (";
     }
+
     setPhone(formatted);
   };
 
@@ -212,14 +277,66 @@ export default function BottomNav() {
                   </p>
                 </div>
 
-                {/* Кнопка быстрого прямого звонка */}
-                <a
-                  href="tel:+78123363636"
-                  className="w-full min-h-[50px] px-4 rounded-2xl bg-slate-100 hover:bg-slate-200 active:scale-[0.98] border border-slate-200 text-slate-800 font-bold text-sm flex items-center justify-center gap-2.5 transition-all shadow-sm"
-                >
-                  <Phone size={18} className="text-[#5e8f23]" />
-                  <span>Позвонить прямо сейчас</span>
-                </a>
+                {/* Блок прямого звонка и копирования номера */}
+                <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3.5 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                        Прямой номер
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleCopyPhone}
+                        className="text-base font-bold text-slate-900 tracking-tight flex items-center gap-1.5 hover:text-[#5e8f23] transition-colors"
+                        title="Нажмите, чтобы скопировать"
+                      >
+                        <span>{DEALER_PHONE_DISPLAY}</span>
+                      </button>
+                    </div>
+
+                    {/* Бейдж статуса копирования */}
+                    {copied && (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700 animate-in fade-in duration-150">
+                        <Check size={13} strokeWidth={2.5} />
+                        Скопирован
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Кнопки действий: Позвонить и Скопировать */}
+                  <div className="grid grid-cols-2 gap-2 pt-0.5">
+                    <a
+                      href={`tel:${DEALER_PHONE_RAW}`}
+                      onClick={handleDirectCall}
+                      className="min-h-[46px] px-3 rounded-xl bg-slate-900 hover:bg-slate-800 active:scale-[0.98] text-white font-semibold text-xs flex items-center justify-center gap-2 transition-all shadow-sm"
+                    >
+                      <Phone size={15} className="text-[#8cc63f]" />
+                      <span>Позвонить</span>
+                    </a>
+
+                    <button
+                      type="button"
+                      onClick={handleCopyPhone}
+                      className={`min-h-[46px] px-3 rounded-xl font-semibold text-xs flex items-center justify-center gap-2 transition-all active:scale-[0.98] border ${
+                        copied
+                          ? "bg-emerald-50 text-emerald-700 border-emerald-300"
+                          : "bg-white hover:bg-slate-100/80 text-slate-700 border-slate-200"
+                      }`}
+                    >
+                      {copied ? (
+                        <>
+                          <Check size={15} strokeWidth={2.5} className="text-emerald-600" />
+                          <span>Скопировано!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy size={15} className="text-slate-500" />
+                          <span>Скопировать</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
 
                 {/* Разделитель */}
                 <div className="relative flex items-center py-1">
