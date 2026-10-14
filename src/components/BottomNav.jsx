@@ -1,25 +1,48 @@
 import React, { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Home, Flame, Phone, User, X } from "lucide-react";
-import { formatRussianPhone } from "/src/utils/phone";
+import { Home, Gift, Phone, MapPin, User, X, CheckCircle } from "lucide-react";
 
 export default function BottomNav() {
   const navigate = useNavigate();
   const location = useLocation();
+  const currentPath = location.pathname;
+
   const [showCallback, setShowCallback] = useState(false);
   const [phone, setPhone] = useState("");
   const [name, setName] = useState("");
   const [status, setStatus] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  const handlePhoneChange = (e) => {
+    let val = e.target.value.replace(/\D/g, "");
+    if (!val) {
+      setPhone("");
+      return;
+    }
+    if (val.startsWith("7") || val.startsWith("8")) {
+      val = val.slice(1);
+    }
+    val = val.slice(0, 10);
+
+    let formatted = "+7";
+    if (val.length > 0) {
+      formatted += ` (${val.slice(0, 3)}`;
+    }
+    if (val.length >= 3) {
+      formatted += `) ${val.slice(3, 6)}`;
+    }
+    if (val.length >= 6) {
+      formatted += `-${val.slice(6, 8)}`;
+    }
+    if (val.length >= 8) {
+      formatted += `-${val.slice(8, 10)}`;
+    }
+    setPhone(formatted);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!phone || phone.replace(/\D/g, "").length < 11) {
-      setStatus("Введите корректный номер телефона");
-      return;
-    }
-
-    setIsSubmitting(true);
+    setSubmitting(true);
     setStatus("Отправка...");
 
     try {
@@ -28,108 +51,111 @@ export default function BottomNav() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           phone,
-          name: name || "Клиент",
-          comment: "Заказ звонка из нижнего меню",
+          name,
           callUrl: window.location.href,
         }),
       });
 
-      const data = await res.json().catch(() => ({}));
+      const data = await res.json();
 
       if (res.ok) {
-        setStatus("Заявка принята! Мы скоро перезвоним.");
+        setStatus("success");
         setPhone("");
         setName("");
         setTimeout(() => {
           setShowCallback(false);
           setStatus("");
-        }, 2000);
+        }, 1800);
       } else {
-        setStatus("Ошибка: " + (data?.details?.message || "Попробуйте позже"));
+        setStatus("Ошибка: " + (data.details?.message || "Попробуйте позже"));
       }
     } catch (err) {
-      setStatus("Ошибка соединения. Попробуйте снова.");
+      console.error("Calltouch error:", err);
+      setStatus("Ошибка сети при отправке");
     } finally {
-      setIsSubmitting(false);
+      setSubmitting(false);
     }
   };
 
   const navItems = [
     {
-      id: "home",
       label: "Главная",
-      icon: Home,
       path: "/",
-      isActive: location.pathname === "/",
+      icon: Home,
+      isActive: currentPath === "/",
+      onClick: () => navigate("/"),
     },
     {
-      id: "offers",
       label: "Акции",
-      icon: Flame,
       path: "/offers",
-      isActive:
-        location.pathname === "/offers" ||
-        location.pathname.startsWith("/offer/"),
+      icon: Gift,
+      isActive: currentPath.startsWith("/offers") || currentPath.startsWith("/offer/"),
+      onClick: () => navigate("/offers"),
     },
     {
-      id: "call",
-      label: "Звонок",
+      label: "Позвонить",
+      isAction: true,
       icon: Phone,
+      isActive: showCallback,
       onClick: () => setShowCallback(true),
-      isActive: false,
     },
     {
-      id: "profile",
-      label: "Кабинет",
-      icon: User,
+      label: "Контакты",
+      path: "/contacts",
+      icon: MapPin,
+      isActive: currentPath.startsWith("/contacts"),
+      onClick: () => navigate("/contacts"),
+    },
+    {
+      label: "Гараж",
       path: "/ProfilePage",
-      isActive:
-        location.pathname === "/ProfilePage" ||
-        location.pathname === "/BonusPage",
+      icon: User,
+      isActive: currentPath.startsWith("/ProfilePage"),
+      onClick: () => navigate("/ProfilePage"),
     },
   ];
 
   return (
     <>
-      {/* Нижняя панель навигации (Bottom Tab Bar) согласно брендбуку */}
+      {/* ======= Нижнее премиум-меню (Glassmorphism bar) ======= */}
       <nav
-        role="navigation"
-        aria-label="Основное меню"
-        className="fixed bottom-0 inset-x-0 z-40 bg-white/90 backdrop-blur-md border-t border-slate-200/80 shadow-lg shadow-black/5 safe-bottom"
+        aria-label="Основная навигация"
+        className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200/80 shadow-[0_-2px_12px_rgba(0,0,0,0.03)]"
       >
-        <div className="max-w-md mx-auto grid grid-cols-4 h-16 items-center px-1">
-          {navItems.map((item) => {
+        <div className="max-w-md mx-auto grid grid-cols-5 items-center px-1 py-1.5 pb-safe">
+          {navItems.map((item, idx) => {
             const Icon = item.icon;
             const active = item.isActive;
 
-            const handleClick = () => {
-              if (item.onClick) {
-                item.onClick();
-              } else if (item.path) {
-                navigate(item.path);
-              }
-            };
-
             return (
               <button
-                key={item.id}
-                onClick={handleClick}
-                type="button"
+                key={idx}
+                onClick={item.onClick}
+                className="group flex flex-col items-center justify-center min-h-[48px] py-1 px-1 transition-all active:scale-95"
                 aria-label={item.label}
-                className="flex flex-col items-center justify-center py-1 group select-none transition-all active:scale-95 cursor-pointer"
               >
-                <Icon
-                  className={`w-5 h-5 transition-transform duration-200 group-active:scale-90 ${
+                {/* Иконка */}
+                <div
+                  className={`relative flex items-center justify-center w-8 h-7 rounded-lg transition-colors ${
                     active
-                      ? "text-pragmatika-green stroke-[2.2]"
-                      : "text-pragmatika-light stroke-[1.8] group-hover:text-pragmatika-dark"
+                      ? "text-[#5e8f23]"
+                      : "text-slate-400 group-hover:text-slate-700"
                   }`}
-                />
+                >
+                  <Icon
+                    size={20}
+                    strokeWidth={active ? 2.2 : 1.7}
+                    className="transition-transform group-active:scale-90"
+                  />
+                  {active && (
+                    <span className="absolute -bottom-0.5 w-1 h-1 rounded-full bg-[#8cc63f]" />
+                  )}
+                </div>
+
+                {/* Подпись */}
                 <span
-                  className={`text-[10px] mt-1 transition-colors whitespace-nowrap ${
-                    active
-                      ? "text-pragmatika-green font-bold"
-                      : "text-pragmatika-light group-hover:text-pragmatika-dark font-medium"
+                  className={`text-[10px] tracking-tight leading-none mt-1 font-medium transition-colors ${
+                    active ? "text-[#5e8f23] font-bold" : "text-slate-500"
                   }`}
                 >
                   {item.label}
@@ -140,89 +166,93 @@ export default function BottomNav() {
         </div>
       </nav>
 
-      {/* Шторка (Bottom Sheet) для обратного звонка */}
+      {/* ======= Попап обратного звонка (Calltouch) ======= */}
       {showCallback && (
-        <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-xs flex flex-col justify-end z-50 transition-opacity animate-in fade-in duration-200"
-          onClick={() => setShowCallback(false)}
-        >
-          <div
-            className="w-full max-w-lg mx-auto bg-white rounded-t-3xl shadow-2xl overflow-hidden p-6 space-y-4 animate-in slide-in-from-bottom duration-300"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Хэндл шторки */}
-            <div className="w-12 h-1.5 bg-slate-300 rounded-full mx-auto -mt-2 mb-2" />
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl w-full max-w-sm p-5 shadow-2xl border border-slate-200 relative">
+            {/* Кнопка закрытия */}
+            <button
+              onClick={() => setShowCallback(false)}
+              className="absolute top-4 right-4 w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 transition-colors"
+              aria-label="Закрыть"
+            >
+              <X size={15} />
+            </button>
 
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-pragmatika-green/15 text-pragmatika-green flex items-center justify-center">
-                  <Phone className="w-4 h-4" />
+            {status === "success" ? (
+              <div className="py-6 text-center">
+                <div className="w-12 h-12 rounded-full bg-[#8cc63f]/20 text-[#5e8f23] flex items-center justify-center mx-auto mb-3">
+                  <CheckCircle size={28} />
                 </div>
+                <h3 className="text-base font-bold text-slate-900 mb-1">
+                  Заявка принята!
+                </h3>
+                <p className="text-xs text-slate-500 max-w-[220px] mx-auto leading-relaxed">
+                  Мы свяжемся с вами в течение нескольких минут.
+                </p>
+              </div>
+            ) : (
+              <form onSubmit={handleSubmit} className="space-y-3.5">
                 <div>
-                  <h3 className="text-base font-bold text-pragmatika-dark">
-                    Заказать звонок
-                  </h3>
-                  <p className="text-xs text-pragmatika-light">
-                    Перезвоним в течение 1 минуты
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="w-6 h-6 rounded-md bg-[#8cc63f]/15 flex items-center justify-center text-[#5e8f23]">
+                      <Phone size={13} strokeWidth={2} />
+                    </div>
+                    <h3 className="text-sm font-bold text-slate-900">
+                      Заказать звонок
+                    </h3>
+                  </div>
+                  <p className="text-[11px] text-slate-500 leading-normal">
+                    Перезвоним и ответим на любые вопросы по авто и сервису.
                   </p>
                 </div>
-              </div>
-              <button
-                onClick={() => setShowCallback(false)}
-                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-pragmatika-dark flex items-center justify-center transition-colors cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
 
-            <form onSubmit={handleSubmit} className="flex flex-col gap-3 pt-1">
-              <div>
-                <label className="block text-xs font-semibold text-pragmatika-dark mb-1">
-                  Ваше имя
-                </label>
-                <input
-                  type="text"
-                  placeholder="Иван"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-pragmatika-black focus:outline-hidden focus:border-pragmatika-green focus:bg-white transition-all"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-pragmatika-dark mb-1">
-                  Номер телефона <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="tel"
-                  placeholder="+7 (___) ___-__-__"
-                  value={phone}
-                  onChange={(e) => setPhone(formatRussianPhone(e.target.value))}
-                  required
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-pragmatika-black focus:outline-hidden focus:border-pragmatika-green focus:bg-white transition-all"
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="mt-1 w-full bg-pragmatika-green hover:brightness-105 text-white font-bold py-3.5 rounded-xl shadow-md shadow-pragmatika-green/20 transition-all active:scale-[0.98] text-sm cursor-pointer disabled:opacity-50"
-              >
-                {isSubmitting ? "Отправка..." : "Жду звонка"}
-              </button>
-
-              {status && (
-                <div
-                  className={`text-xs mt-1 p-2.5 rounded-xl text-center font-medium ${
-                    status.startsWith("Заявка")
-                      ? "bg-green-50 text-green-700 border border-green-200"
-                      : "bg-red-50 text-red-600 border border-red-200"
-                  }`}
-                >
-                  {status}
+                {/* Поле Имя */}
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                    Ваше имя
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Как к вам обращаться"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 focus:outline-none focus:border-[#8cc63f] bg-slate-50/50"
+                  />
                 </div>
-              )}
-            </form>
+
+                {/* Поле Телефон */}
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                    Номер телефона *
+                  </label>
+                  <input
+                    type="tel"
+                    required
+                    value={phone}
+                    onChange={handlePhoneChange}
+                    placeholder="+7 (___) ___-__-__"
+                    className="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 focus:outline-none focus:border-[#8cc63f] bg-slate-50/50"
+                  />
+                </div>
+
+                {status && status !== "success" && (
+                  <p className="text-[11px] font-medium text-red-500 text-center">
+                    {status}
+                  </p>
+                )}
+
+                <div className="pt-1.5">
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="w-full py-2.5 rounded-xl bg-[#8cc63f] hover:bg-[#7db934] disabled:opacity-50 text-white text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-1.5 active:scale-[0.98]"
+                  >
+                    {submitting ? "Отправка…" : "Заказать звонок"}
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}

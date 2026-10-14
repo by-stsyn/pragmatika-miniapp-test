@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, User, ShieldCheck } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import BottomNav from "/src/components/BottomNav";
 import { useNavigate } from "react-router-dom";
 import { BRANDS_MODELS } from "/src/data/brands";
 import Preloader from "/src/components/Preloader";
 import { platform } from "./platform";
 
-const BASE_URL = "/api/render";
+const BASE_URL = "https://telegram-miniapp-orpin.vercel.app/api/render";
 
 /* ===== Справочник типов заказ-нарядов ===== */
 const REPAIR_TYPE_LABELS = {
@@ -16,37 +16,10 @@ const REPAIR_TYPE_LABELS = {
 };
 
 export default function ProfilePage() {
-  const [user, setUser] = useState(() => platform.getUser());
-  const [userId, setUserId] = useState(() => platform.getId()); // ← универсальный ID
+  const user = platform.getUser();
+  const userId = platform.getId(); // ← универсальный ID
   const idParam = platform?.isMax?.() ? "maxId" : "telegramId";
-  
-  useEffect(() => {
-    const unsub = platform.subscribe?.((u) => {
-      if (u) {
-        setUser(u);
-        if (u.id) setUserId(u.id);
-      }
-    });
-
-    const currentId = platform.getId();
-    if (currentId) setUserId(currentId);
-
-    // Подгрузка CRM данных клиента
-    if (currentId) {
-      fetch(`${BASE_URL}?path=communication/contact/client&${idParam}=${currentId}`)
-        .then((res) => (res.ok ? res.json() : null))
-        .then((data) => {
-          if (data?.data) {
-            platform.updateFromClientInfo?.(data.data);
-          }
-        })
-        .catch(() => {});
-    }
-
-    return () => {
-      if (unsub) unsub();
-    };
-  }, []);
+  console.log("ID PARAM:", idParam, userId);
   const [bonus, setBonus] = useState(null);
   const [cars, setCars] = useState([]);
   const [recommendations, setRecommendations] = useState({});
@@ -111,14 +84,7 @@ const [insuranceSending, setInsuranceSending] = useState(false);
         );
         if (res.ok) {
           const data = await res.json();
-          const cardData = data.card || null;
-          setBonus(cardData);
-          if (cardData) {
-            try {
-              localStorage.setItem("userBonus", JSON.stringify(cardData));
-              sessionStorage.setItem("userBonus", JSON.stringify(cardData));
-            } catch (e) {}
-          }
+          setBonus(data.card || null);
         }
       } finally {
         setLoading(false);
@@ -132,25 +98,7 @@ const [insuranceSending, setInsuranceSending] = useState(false);
 
     fetch(`${BASE_URL}?path=api/profile/cars&telegramId=${userId}`)
       .then(res => res.ok && res.json())
-      .then(data => {
-        const list = Array.isArray(data?.cars) ? data.cars : [];
-        if (list.length > 0) {
-          setCars(list);
-          try {
-            localStorage.setItem("pragmatika_user_cars", JSON.stringify(list));
-          } catch (e) {}
-        } else {
-          try {
-            const saved = localStorage.getItem("pragmatika_user_cars");
-            if (saved) {
-              const parsed = JSON.parse(saved);
-              if (Array.isArray(parsed) && parsed.length > 0) {
-                setCars(parsed);
-              }
-            }
-          } catch (e) {}
-        }
-      });
+      .then(data => setCars(data?.cars || []));
   }, [userId]);
 
   /* ===== Загрузка Рекомендаций ===== */
@@ -358,34 +306,11 @@ const [insuranceSending, setInsuranceSending] = useState(false);
 
       {/* Профиль */}
       <div className="text-center mb-6">
-        <div className="w-24 h-24 rounded-full mx-auto mb-3 ring-4 ring-[#8cc63f]/25 shadow-md overflow-hidden bg-[#f0f7e8] flex items-center justify-center relative">
-          {user?.photo ? (
-            <img
-              src={user.photo}
-              className="w-full h-full object-cover"
-              alt="Профиль"
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-[#6fa02f] font-bold text-3xl">
-              {user?.firstName || user?.first_name ? (
-                (user.firstName || user.first_name)[0].toUpperCase()
-              ) : (
-                <User size={38} />
-              )}
-            </div>
-          )}
-          <span className="w-4 h-4 bg-[#8cc63f] rounded-full border-2 border-white absolute bottom-1 right-1 shadow-xs" />
-        </div>
-        <h2 className="text-2xl font-bold text-[#425766] break-words">
-          {user?.firstName || user?.first_name
-            ? `${user.firstName || user.first_name} ${user.lastName || user.last_name || ""}`.trim()
-            : userId
-            ? `Клиент #${userId}`
-            : "Клиент Прагматика"}
-        </h2>
-        <p className="text-xs text-gray-400 mt-1">
-          {bonus?.number ? `Карта лояльности № ${bonus.number}` : userId ? `ID: ${userId}` : ""}
-        </p>
+        <img
+          src={user?.photo || "https://via.placeholder.com/150"}
+          className="w-24 h-24 rounded-full mx-auto mb-3 border object-cover"
+        />
+        <h2 className="text-2xl font-semibold">{user?.firstName || user?.first_name}</h2>
       </div>
 
       {/* Бонусы */}

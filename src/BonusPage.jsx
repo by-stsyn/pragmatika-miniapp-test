@@ -4,7 +4,7 @@ import BottomNav from "/src/components/BottomNav";
 import Preloader from "/src/components/Preloader";
 import { platform } from "./platform";
 
-const BASE_URL = "/api/render"; // ваш прокси
+const BASE_URL = "https://telegram-miniapp-orpin.vercel.app/api/render"; // ваш прокси
 
 export default function BonusPage() {
   const [loading, setLoading] = useState(true);
@@ -30,14 +30,7 @@ export default function BonusPage() {
       if (!res.ok) throw new Error("Не удалось получить данные");
 
       const data = await res.json();
-      const cardData = data.card || null;
-      setBonus(cardData);
-      if (cardData) {
-        try {
-          localStorage.setItem("userBonus", JSON.stringify(cardData));
-          sessionStorage.setItem("userBonus", JSON.stringify(cardData));
-        } catch (e) {}
-      }
+      setBonus(data.card || null);
     } catch (e) {
       console.error(e);
       setError("Ошибка загрузки данных");
