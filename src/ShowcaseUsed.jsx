@@ -1,6 +1,21 @@
 import React, { useEffect, useState } from "react";
 import { Range } from "react-range";
-import { ArrowUp, ArrowLeft, SlidersHorizontal } from "lucide-react";
+import { 
+  ArrowUp, 
+  ArrowLeft, 
+  SlidersHorizontal, 
+  X, 
+  ChevronDown, 
+  MapPin, 
+  RotateCcw,
+  Gauge,
+  Calendar,
+  Sparkles,
+  Phone,
+  User,
+  Check,
+  Car as CarIcon
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import translations from "./translations";
 import BottomNav from "/src/components/BottomNav";
@@ -11,32 +26,48 @@ const translateValue = (value) => {
   return translations[value.toLowerCase()] || value;
 };
 
-export default function CarShowcaseUsed() {
-  const [cars, setCars] = useState([]);
-
-  const navigate = useNavigate();
-  const [filtered, setFiltered] = useState([]);
-  const defaultFilterState = {
+const defaultFilterState = {
   vendor: [],
   model: [],
   color: [],
   body: [],
   transmission: [],
   drive: [],
+  dealer: [],
   price: [0, 9999999],
   run: [0, 500000],
-  year: [1990, 2025],
-  dealer: [],
+  year: [1990, 2026],
 };
 
-const [filters, setFilters] = useState(() => {
-  const saved = localStorage.getItem("usedFilters");
-  return saved ? JSON.parse(saved) : defaultFilterState;
-});
+export default function CarShowcaseUsed() {
+  const navigate = useNavigate();
+
+  const [cars, setCars] = useState([]);
+  const [filtered, setFiltered] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const [priceRange, setPriceRange] = useState([0, 9999999]);
   const [runRange, setRunRange] = useState([0, 500000]);
-  const [yearRange, setYearRange] = useState([1990, 2025]);
+  const [yearRange, setYearRange] = useState([1990, 2026]);
+
+  const [filters, setFilters] = useState(() => {
+    try {
+      const saved = localStorage.getItem("usedFilters");
+      return saved ? JSON.parse(saved) : defaultFilterState;
+    } catch (e) {
+      return defaultFilterState;
+    }
+  });
+
+  const [openFilters, setOpenFilters] = useState({
+    vendor: false,
+    model: false,
+    dealer: false,
+    body: false,
+    transmission: false,
+    drive: false,
+    color: false,
+  });
 
   const [filteredOptions, setFilteredOptions] = useState({
     vendors: [],
@@ -48,25 +79,232 @@ const [filters, setFilters] = useState(() => {
     dealers: [],
   });
 
-  const [openFilters, setOpenFilters] = useState({
-    vendor: false,
-    model: false,
-    color: false,
-    body: false,
-    transmission: false,
-    drive: false,
-    dealer: false,
-  });
-
   const [modalCar, setModalCar] = useState(null);
   const [modalFilters, setModalFilters] = useState(false);
   const [formData, setFormData] = useState({ name: "", phone: "" });
-  const [loading, setLoading] = useState(true);
-  const [loadingImages, setLoadingImages] = useState(true);
- const [visibleCount, setVisibleCount] = useState(() => {
-  const saved = localStorage.getItem("usedVisibleCount");
-  return saved ? parseInt(saved, 22) : 24;
-});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [visibleCount, setVisibleCount] = useState(() => {
+    try {
+      const saved = localStorage.getItem("usedVisibleCount");
+      return saved ? parseInt(saved, 10) : 24;
+    } catch (e) {
+      return 24;
+    }
+  });
+
+  // Обработка кнопки Назад (браузер + нативный Telegram)
+  const handleBack = () => {
+    if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      navigate("/");
+    }
+  };
+
+  useEffect(() => {
+    const tgBack = window.Telegram?.WebApp?.BackButton;
+    if (tgBack) {
+      try {
+        tgBack.show();
+        tgBack.onClick(handleBack);
+      } catch (e) {
+        // Safe fallback
+      }
+    }
+
+    return () => {
+      if (tgBack) {
+        try {
+          tgBack.offClick(handleBack);
+          tgBack.hide();
+        } catch (e) {
+          // Safe fallback
+        }
+      }
+    };
+  }, []);
+
+  // Загрузка фида авто с пробегом
+  useEffect(() => {
+    let isMounted = true;
+    const fetchFeed = async () => {
+      try {
+        const res = await fetch("/api/fetch-feed-used");
+        const xmlText = await res.text();
+        const parser = new DOMParser();
+        const xml = parser.parseFromString(xmlText, "text/xml");
+
+        const carsArray = Array.from(xml.querySelectorAll("vehicle")).map((car) => {
+          const get = (tag) => car.querySelector(tag)?.textContent?.trim() || "";
+
+          return {
+            id: get("id"),
+            vendor: get("brand"),
+            model: get("model"),
+            price: parseInt(get("price"), 10) || 0,
+            maxDiscount: parseInt(get("maxDiscount"), 10) || 0,
+            images: Array.from(car.querySelectorAll("photos > photo")).map((img) => img.textContent?.trim()).filter(Boolean),
+            color: get("bodyColor"),
+            body: get("bodyType"),
+            transmission: get("gearboxType"),
+            drive: get("driveType"),
+            year: parseInt(get("year"), 10) || 0,
+            run: parseInt(get("mileage"), 10) || 0,
+            dealer: car.querySelector("dealer")?.textContent?.trim() || "",
+            engineType: get("engineType"),
+            description: get("description"),
+            engineVolume: get("engineVolume"),
+            enginePower: get("enginePower"),
+            complectation: get("complectation"),
+            extras: Array.from(car.querySelectorAll("equipment group element"))
+              .map((e) => e.textContent?.trim())
+              .filter(Boolean),
+          };
+        });
+
+        if (!isMounted) return;
+
+        const prices = carsArray.map((c) => c.price).filter((p) => p > 0);
+        const runs = carsArray.map((c) => c.run).filter((r) => r >= 0);
+        const years = carsArray.map((c) => c.year).filter((y) => y > 0);
+
+        const minPrice = prices.length ? Math.min(...prices) : 0;
+        const maxPrice = prices.length ? Math.max(...prices) : 9999999;
+        const minRun = runs.length ? Math.min(...runs) : 0;
+        const maxRun = runs.length ? Math.max(...runs) : 500000;
+        const minYear = years.length ? Math.min(...years) : 1990;
+        const maxYear = years.length ? Math.max(...years) : 2026;
+
+        setCars(carsArray);
+        setFiltered(carsArray);
+
+        setPriceRange([minPrice, maxPrice]);
+        setRunRange([minRun, maxRun]);
+        setYearRange([minYear, maxYear]);
+
+        setFilters((prev) => {
+          const isDefaultPrice = !prev.price || (prev.price[0] === 0 && prev.price[1] === 9999999);
+          const isDefaultRun = !prev.run || (prev.run[0] === 0 && prev.run[1] === 500000);
+          const isDefaultYear = !prev.year || (prev.year[0] === 1990 && prev.year[1] === 2025);
+
+          return {
+            ...prev,
+            price: isDefaultPrice ? [minPrice, maxPrice] : prev.price,
+            run: isDefaultRun ? [minRun, maxRun] : prev.run,
+            year: isDefaultYear ? [minYear, maxYear] : prev.year,
+          };
+        });
+
+        setLoading(false);
+      } catch (error) {
+        console.error("Ошибка загрузки фида:", error);
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    fetchFeed();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Фильтрация списка автомобилей
+  useEffect(() => {
+    const result = cars.filter((car) => {
+      const matchVendor = filters.vendor.length === 0 || filters.vendor.includes(car.vendor);
+      const matchModel = filters.model.length === 0 || filters.model.includes(car.model);
+      const matchColor = filters.color.length === 0 || filters.color.includes(car.color);
+      const matchBody = filters.body.length === 0 || filters.body.includes(car.body);
+      const matchTransmission = filters.transmission.length === 0 || filters.transmission.includes(car.transmission);
+      const matchDrive = filters.drive.length === 0 || filters.drive.includes(car.drive);
+      const matchDealer = filters.dealer.length === 0 || filters.dealer.includes(car.dealer);
+
+      const matchPrice =
+        (!filters.price || (car.price >= filters.price[0] && car.price <= filters.price[1]));
+      const matchRun =
+        (!filters.run || (car.run >= filters.run[0] && car.run <= filters.run[1]));
+      const matchYear =
+        (!filters.year || (car.year >= filters.year[0] && car.year <= filters.year[1]));
+
+      return (
+        matchVendor &&
+        matchModel &&
+        matchColor &&
+        matchBody &&
+        matchTransmission &&
+        matchDrive &&
+        matchDealer &&
+        matchPrice &&
+        matchRun &&
+        matchYear
+      );
+    });
+
+    setFiltered(result);
+
+    let carsToFilter = cars;
+    if (filters.vendor.length > 0) {
+      carsToFilter = carsToFilter.filter((c) => filters.vendor.includes(c.vendor));
+    }
+
+    setFilteredOptions({
+      vendors: [...new Set(cars.map((c) => c.vendor))].filter(Boolean).sort(),
+      models: [...new Set(carsToFilter.map((c) => c.model))].filter(Boolean).sort(),
+      colors: [...new Set(carsToFilter.map((c) => c.color))].filter(Boolean).sort(),
+      bodies: [...new Set(carsToFilter.map((c) => c.body))].filter(Boolean).sort(),
+      transmissions: [...new Set(carsToFilter.map((c) => c.transmission))].filter(Boolean).sort(),
+      drives: [...new Set(carsToFilter.map((c) => c.drive))].filter(Boolean).sort(),
+      dealers: [...new Set(carsToFilter.map((c) => c.dealer))].filter(Boolean).sort(),
+    });
+  }, [filters, cars]);
+
+  // Восстановление позиции скролла при возврате со страницы авто
+  useEffect(() => {
+    const scrollToId = localStorage.getItem("scrollToUsedCarId");
+    if (!scrollToId || !filtered.length) return;
+
+    const index = filtered.findIndex((car) => car.id === scrollToId);
+    if (index === -1) return;
+
+    if (index >= visibleCount) {
+      setVisibleCount(index + 1);
+    }
+  }, [filtered]);
+
+  useEffect(() => {
+    const scrollToId = localStorage.getItem("scrollToUsedCarId");
+    if (!scrollToId) return;
+
+    let attempts = 0;
+    const maxAttempts = 15;
+
+    const tryScroll = () => {
+      const el = document.getElementById(`car-${scrollToId}`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        localStorage.removeItem("scrollToUsedCarId");
+      } else if (attempts < maxAttempts) {
+        attempts++;
+        setTimeout(tryScroll, 120);
+      }
+    };
+
+    tryScroll();
+  }, [cars, visibleCount]);
+
+  // Сохранение фильтров и пагинации
+  useEffect(() => {
+    try {
+      localStorage.setItem("usedFilters", JSON.stringify(filters));
+    } catch (e) {}
+  }, [filters]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("usedVisibleCount", visibleCount.toString());
+    } catch (e) {}
+  }, [visibleCount]);
 
   const toggleFilterVisibility = (filter) => {
     setOpenFilters((prev) => ({
@@ -77,9 +315,10 @@ const [filters, setFilters] = useState(() => {
 
   const handleCheckboxChange = (name, value) => {
     setFilters((prev) => {
-      const newValues = prev[name].includes(value)
-        ? prev[name].filter((v) => v !== value)
-        : [...prev[name], value];
+      const currentList = prev[name] || [];
+      const newValues = currentList.includes(value)
+        ? currentList.filter((v) => v !== value)
+        : [...currentList, value];
       return { ...prev, [name]: newValues };
     });
   };
@@ -99,9 +338,23 @@ const [filters, setFilters] = useState(() => {
     });
   };
 
-	const handleSubmit = async (e) => {
-    e.preventDefault();
+  const activeFiltersCount =
+    (filters.vendor?.length || 0) +
+    (filters.model?.length || 0) +
+    (filters.color?.length || 0) +
+    (filters.body?.length || 0) +
+    (filters.transmission?.length || 0) +
+    (filters.drive?.length || 0) +
+    (filters.dealer?.length || 0) +
+    (filters.price && (filters.price[0] > priceRange[0] || filters.price[1] < priceRange[1]) ? 1 : 0) +
+    (filters.run && (filters.run[0] > runRange[0] || filters.run[1] < runRange[1]) ? 1 : 0) +
+    (filters.year && (filters.year[0] > yearRange[0] || filters.year[1] < yearRange[1]) ? 1 : 0);
 
+  const handleSubmitBooking = async (e) => {
+    e.preventDefault();
+    if (!formData.name || !formData.phone) return;
+
+    setIsSubmitting(true);
     try {
       const res = await fetch("/api/send-booking", {
         method: "POST",
@@ -110,974 +363,885 @@ const [filters, setFilters] = useState(() => {
           name: formData.name,
           phone: formData.phone,
           car: {
-            vendor: modalCar.vendor,
-            model: modalCar.model,
-            dealer: modalCar.dealer,
+            vendor: modalCar?.vendor || "",
+            model: modalCar?.model || "",
+            dealer: modalCar?.dealer || "",
+            year: modalCar?.year || "",
+            price: modalCar?.price || 0,
           },
         }),
       });
 
       if (res.ok) {
-        alert("Заявка успешно отправлена!");
+        alert("Заявка успешно отправлена! Наш менеджер свяжется с вами в ближайшее время.");
         setFormData({ name: "", phone: "" });
         setModalCar(null);
       } else {
         alert("Ошибка при отправке. Попробуйте позже.");
       }
     } catch (error) {
-      console.error("Ошибка:", error);
+      console.error("Ошибка отправки заявки:", error);
       alert("Ошибка сети. Попробуйте позже.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  useEffect(() => {
-    const fetchFeed = async () => {
-  try {
-    const res = await fetch("/api/fetch-feed-used");
-    const xmlText = await res.text();
-    const parser = new DOMParser();
-    const xml = parser.parseFromString(xmlText, "text/xml");
+  // Компонент аккордеона фильтра
+  const renderFilterAccordion = (title, key, items, isTranslate = false) => {
+    const selectedCount = filters[key]?.length || 0;
+    const isOpen = openFilters[key];
 
-    const carsArray = Array.from(xml.querySelectorAll("vehicle")).map((car) => {
-      const get = (tag) => car.querySelector(tag)?.textContent || "";
-
-      return {
-        id: get("id"),
-        vendor: get("brand"),
-        model: get("model"),
-        price: parseInt(get("price")) || 0,
-        maxDiscount: parseInt(get("maxDiscount")) || 0,
-        images: Array.from(car.querySelectorAll("photos > photo")).map((img) => img.textContent),
-        color: get("bodyColor"),
-        body: get("bodyType"),
-        transmission: get("gearboxType"),
-        drive: get("driveType"),
-        year: parseInt(get("year")) || 0,
-        run: parseInt(get("mileage")) || 0,
-        dealer: car.querySelector("dealer")?.textContent || "",
-        engineType: get("engineType"),
-        description: get("description"),
-		engineVolume: get("engineVolume"),
-		enginePower: get("enginePower"),
-	    // комплектация
-  complectation: get("complectation"),
-
-  // список опций
-  extras: Array.from(car.querySelectorAll("equipment group element"))
-               .map(e => e.textContent.trim()),
-
-
-      };
-    });
-
-    const prices = carsArray.map((c) => c.price).filter(Boolean);
-    const runs = carsArray.map((c) => c.run).filter(Boolean);
-    const years = carsArray.map((c) => c.year).filter(Boolean);
-
-    setCars(carsArray);
-    setFiltered(carsArray);
-
-    if (prices.length) setPriceRange([Math.min(...prices), Math.max(...prices)]);
-    if (runs.length) setRunRange([Math.min(...runs), Math.max(...runs)]);
-    if (years.length) setYearRange([Math.min(...years), Math.max(...years)]);
-
-    setFilters((prev) => ({
-      ...prev,
-      price: prices.length ? [Math.min(...prices), Math.max(...prices)] : prev.price,
-      run: runs.length ? [Math.min(...runs), Math.max(...runs)] : prev.run,
-      year: years.length ? [Math.min(...years), Math.max(...years)] : prev.year,
-    }));
-
-    setLoading(false);
-  } catch (error) {
-    console.error("Ошибка загрузки фида:", error);
-    setLoading(false);
-  }
-};
-
-
-    fetchFeed();
-  }, []);
-
-  useEffect(() => {
-    const result = cars.filter((car) => {
-      return (
-        (filters.vendor.length === 0 || filters.vendor.includes(car.vendor)) &&
-        (filters.model.length === 0 || filters.model.includes(car.model)) &&
-        (filters.color.length === 0 || filters.color.includes(car.color)) &&
-        (filters.body.length === 0 || filters.body.includes(car.body)) &&
-        (filters.transmission.length === 0 || filters.transmission.includes(car.transmission)) &&
-        (filters.drive.length === 0 || filters.drive.includes(car.drive)) &&
-        (filters.dealer.length === 0 || filters.dealer.includes(car.dealer)) &&
-        car.price >= filters.price[0] &&
-        car.price <= filters.price[1] &&
-        car.run >= filters.run[0] &&
-        car.run <= filters.run[1] &&
-        car.year >= filters.year[0] &&
-        car.year <= filters.year[1]
-      );
-    });
-
-    setFiltered(result);
-    setVisibleCount(24);
-
-    let carsToFilter = cars;
-    if (filters.vendor.length > 0) {
-      carsToFilter = carsToFilter.filter((c) => filters.vendor.includes(c.vendor));
-    }
-
-    setFilteredOptions({
-      vendors: [...new Set(cars.map((c) => c.vendor))],
-      models: [...new Set(carsToFilter.map((c) => c.model))],
-      colors: [...new Set(carsToFilter.map((c) => c.color))],
-      bodies: [...new Set(carsToFilter.map((c) => c.body))],
-      transmissions: [...new Set(carsToFilter.map((c) => c.transmission))],
-      drives: [...new Set(carsToFilter.map((c) => c.drive))],
-      dealers: [...new Set(carsToFilter.map((c) => c.dealer))],
-    });
-  }, [filters, cars]);
-
-	useEffect(() => {
-  const scrollToId = localStorage.getItem("scrollToUsedCarId");
-  if (!scrollToId || !filtered.length) return;
-
-  // найти индекс нужной карточки
-  const index = filtered.findIndex((car) => car.id === scrollToId);
-  if (index === -1) return;
-
-  // если нужная карточка за пределами visibleCount — увеличиваем его
-  if (index >= visibleCount) {
-    setVisibleCount(index + 1); // +1, чтобы точно попала
-  }
-}, [filtered]);
-
-	useEffect(() => {
-  localStorage.setItem("usedFilters", JSON.stringify(filters));
-}, [filters]);
-
-useEffect(() => {
-  localStorage.setItem("usedVisibleCount", visibleCount.toString());
-}, [visibleCount]);
-
-	useEffect(() => {
-  const savedFilters = localStorage.getItem("usedFilters");
-  const savedVisibleCount = localStorage.getItem("usedVisibleCount");
-
-  if (savedFilters) {
-    setFilters(JSON.parse(savedFilters));
-  }
-
-  if (savedVisibleCount) {
-    setVisibleCount(parseInt(savedVisibleCount, 10));
-  }
-}, []);
-
-	useEffect(() => {
-  const scrollToId = localStorage.getItem("scrollToUsedCarId");
-  if (!scrollToId) return;
-
-  let attempts = 0;
-  const maxAttempts = 10;
-
-  const tryScroll = () => {
-    const el = document.getElementById(`car-${scrollToId}`);
-    if (el) {
-      el.scrollIntoView({ behavior: "smooth", block: "start" });
-      localStorage.removeItem("scrollToUsedCarId");
-    } else if (attempts < maxAttempts) {
-      attempts++;
-      setTimeout(tryScroll, 100); // повторяем через 100мс
-    }
-  };
-
-  tryScroll();
-}, [cars, visibleCount]);
-
-  return (
-    <div className="p-6 pb-[75px] bg-gray-50 min-h-screen relative">
-	
-	<div className="max-w-7xl mx-auto">
-        {/* Кнопка назад */}
-        <div className="mb-4">
-          <a href="/" className="inline-flex items-center text-blue-600 hover:underline">
-            <ArrowLeft className="mr-1" /> Назад
-          </a>
-        </div>
-
-        <h1 className="text-3xl font-bold text-center text-gray-800 mb-8">Автомобили с пробегом</h1>
-
-        {loading ? (
-  <Preloader />
-) : (
-  <>
-	
-      <div className="mb-4">
-  <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">
-    {/* Марка */}
-    <div className={`filter ${openFilters.vendor ? 'active' : ''}`}>  
-      <h3
-        className="text-lg font-semibold mb-2 cursor-pointer relative flex items-center justify-between"
-        onClick={() => toggleFilterVisibility('vendor')}
-      >
-        Марка
-	      <span className={`filter-arrow ${openFilters.vendor ? 'active' : ''}`}>&#9660;</span>
-      </h3>
-      {openFilters.vendor && filteredOptions.vendors.map((brand) => (
-        <label key={brand} className="flex items-center space-x-2 mb-1">
-          <input
-            type="checkbox"
-            value={brand}
-            checked={filters.vendor.includes(brand)}
-            onChange={() => handleCheckboxChange('vendor', brand)}
-            className="accent-[#8cc63f] w-5 h-5"
-          />
-          <span>{brand}</span>
-        </label>
-      ))}
-    </div>
-
-    {/* Модель */}
-    <div className={`filter ${openFilters.model ? 'active' : ''}`}>
-      <h3
-        className="text-lg font-semibold mb-2 cursor-pointer flex items-center justify-between"
-        onClick={() => toggleFilterVisibility('model')}
-      >
-        Модель
-	      <span className={`filter-arrow ${openFilters.model ? 'active' : ''}`}>&#9660;</span>
-      </h3>
-      {openFilters.model && filteredOptions.models.map((model) => (
-        <label key={model} className="flex items-center space-x-2 mb-1">
-          <input
-            type="checkbox"
-            value={model}
-            checked={filters.model.includes(model)}
-            onChange={() => handleCheckboxChange('model', model)}
-            className="accent-[#8cc63f] w-5 h-5"
-          />
-          <span>{model}</span>
-        </label>
-      ))}
-    </div>
-
-    {/* Цвет */}
-    <div className={`filter ${openFilters.color ? 'active' : ''}`}>
-      <h3
-        className="text-lg font-semibold mb-2 cursor-pointer flex items-center justify-between"
-        onClick={() => toggleFilterVisibility('color')}
-      >
-        Цвет
-	      <span className={`filter-arrow ${openFilters.color ? 'active' : ''}`}>&#9660;</span>
-      </h3>
-      {openFilters.color && filteredOptions.colors.map((color) => (
-        <label key={color} className="flex items-center space-x-2 mb-1">
-          <input
-            type="checkbox"
-            value={color}
-            checked={filters.color.includes(color)}
-            onChange={() => handleCheckboxChange('color', color)}
-            className="accent-[#8cc63f] w-5 h-5"
-          />
-          <span>{translateValue(color)}</span>
-        </label>
-      ))}
-    </div>
-
-    {/* Трансмиссия */}
-    <div className={`filter ${openFilters.transmission ? 'active' : ''}`}>
-      <h3
-        className="text-lg font-semibold mb-2 cursor-pointer flex items-center justify-between"
-        onClick={() => toggleFilterVisibility('transmission')}
-      >
-        Трансмиссия
-	      <span className={`filter-arrow ${openFilters.transmission ? 'active' : ''}`}>&#9660;</span>
-      </h3>
-      {openFilters.transmission && filteredOptions.transmissions.map((transmission) => (
-        <label key={transmission} className="flex items-center space-x-2 mb-1">
-          <input
-            type="checkbox"
-            value={transmission}
-            checked={filters.transmission.includes(transmission)}
-            onChange={() => handleCheckboxChange('transmission', transmission)}
-            className="accent-[#8cc63f] w-5 h-5"
-          />
-          <span>{translateValue(transmission)}</span>
-        </label>
-      ))}
-    </div>
-
-    {/* Тип кузова */}
-    <div className={`filter ${openFilters.body ? 'active' : ''}`}>
-      <h3
-        className="text-lg font-semibold mb-2 cursor-pointer flex items-center justify-between"
-        onClick={() => toggleFilterVisibility('body')}
-      >
-        Кузов
-	       <span className={`filter-arrow ${openFilters.body ? 'active' : ''}`}>&#9660;</span>
-      </h3>
-      {openFilters.body && filteredOptions.bodies.map((body) => (
-        <label key={body} className="flex items-center space-x-2 mb-1">
-          <input
-            type="checkbox"
-            value={body}
-            checked={filters.body.includes(body)}
-            onChange={() => handleCheckboxChange('body', body)}
-            className="accent-[#8cc63f] w-5 h-5"
-          />
-          <span>{translateValue(body)}</span>
-        </label>
-      ))}
-    </div>
-
-    {/* Локация */}
-    <div className={`filter ${openFilters.dealer ? 'active' : ''}`}>
-      <h3
-        className="text-lg font-semibold mb-2 cursor-pointer flex items-center justify-between"
-        onClick={() => toggleFilterVisibility('dealer')}
-      >
-        Локация
-	       <span className={`filter-arrow ${openFilters.dealer ? 'active' : ''}`}>&#9660;</span>
-      </h3>
-      {openFilters.dealer && filteredOptions.dealers.map((dealer) => (
-        <label key={dealer} className="flex items-center space-x-2 mb-1">
-          <input
-            type="checkbox"
-            value={dealer}
-            checked={filters.dealer.includes(dealer)}
-            onChange={() => handleCheckboxChange('dealer', dealer)}
-            className="accent-[#8cc63f] w-5 h-5"
-          />
-          <span>{dealer}</span>
-        </label>
-      ))}
-    </div>
-
-    {/* Год выпуска */}
-    <div className="col-span-2">
-      <label className="block text-sm font-medium text-gray-700 mb-1">
-        Год выпуска: {filters.year[0]} – {filters.year[1]}
-      </label>
-      <Range
-        step={1}
-        min={yearRange[0]}
-        max={yearRange[1]}
-        values={filters.year}
-        onChange={(values) => setFilters({ ...filters, year: values })}
-        renderTrack={({ props, children }) => (
-          <div
-            {...props}
-        className="h-2 my-4 rounded"
-        style={{
-          ...props.style,
-          background: `linear-gradient(
-            to right,
-            #e0e0e0 ${((filters.year[0] - yearRange[0]) / (yearRange[1] - yearRange[0])) * 100}%,
-            #8cc63f ${((filters.year[0] - yearRange[0]) / (yearRange[1] - yearRange[0])) * 100}%,
-            #8cc63f ${((filters.year[1] - yearRange[0]) / (yearRange[1] - yearRange[0])) * 100}%,
-            #e0e0e0 ${((filters.year[1] - yearRange[0]) / (yearRange[1] - yearRange[0])) * 100}%
-          )`,
-          alignItems: 'center',
-        }}
-          >
-            {children}
-          </div>
-        )}
-        renderThumb={({ props }) => {
-          const { key, ...thumbProps } = props;
-          return (
-            <div
-              key={key}
-              {...thumbProps}
-              className="rounded-full shadow cursor-pointer"
-              style={{
-                ...thumbProps.style,
-                height: '20px',
-                width: '20px',
-                backgroundColor: '#8cc63f',
-                border: '2px solid white',
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-              }}
-            />
-          );
-        }}
-      />
-    </div>
-
-    {/* Пробег */}
-    <div className="col-span-2">
-      <label className="block text-sm font-medium text-gray-700 mb-1">
-        Пробег: {filters.run[0].toLocaleString()} км – {filters.run[1].toLocaleString()} км
-      </label>
-      <Range
-        step={1000}
-        min={runRange[0]}
-        max={runRange[1]}
-        values={filters.run}
-        onChange={(values) => setFilters({ ...filters, run: values })}
-        renderTrack={({ props, children }) => (
-          <div
-            {...props}
-        className="h-2 my-4 rounded"
-        style={{
-          ...props.style,
-          background: `linear-gradient(
-            to right,
-            #e0e0e0 ${((filters.run[0] - runRange[0]) / (runRange[1] - runRange[0])) * 100}%,
-            #8cc63f ${((filters.run[0] - runRange[0]) / (runRange[1] - runRange[0])) * 100}%,
-            #8cc63f ${((filters.run[1] - runRange[0]) / (runRange[1] - runRange[0])) * 100}%,
-            #e0e0e0 ${((filters.run[1] - runRange[0]) / (runRange[1] - runRange[0])) * 100}%
-          )`,
-          alignItems: 'center',
-        }}
-          >
-            {children}
-          </div>
-        )}
-        renderThumb={({ props }) => {
-          const { key, ...thumbProps } = props;
-          return (
-            <div
-              key={key}
-              {...thumbProps}
-              className="rounded-full shadow cursor-pointer"
-              style={{
-                ...thumbProps.style,
-                height: '20px',
-                width: '20px',
-                backgroundColor: '#8cc63f',
-                border: '2px solid white',
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-              }}
-            />
-          );
-        }}
-      />
-    </div>
-
-  </div>
-<div className="col-span-2">
-  <label className="block text-sm font-medium text-gray-700 mb-1">
-    Стоимость: {filters.price[0].toLocaleString()} ₽ – {filters.price[1].toLocaleString()} ₽
-  </label>
-  <Range
-    step={10000}
-    min={priceRange[0]}
-    max={priceRange[1]}
-    values={filters.price}
-    onChange={(values) => setFilters({ ...filters, price: values })}
-    renderTrack={({ props, children }) => (
-      <div
-        {...props}
-        className="h-2 my-4 rounded"
-        style={{
-          ...props.style,
-          background: `linear-gradient(
-            to right,
-            #e0e0e0 ${((filters.price[0] - priceRange[0]) / (priceRange[1] - priceRange[0])) * 100}%,
-            #8cc63f ${((filters.price[0] - priceRange[0]) / (priceRange[1] - priceRange[0])) * 100}%,
-            #8cc63f ${((filters.price[1] - priceRange[0]) / (priceRange[1] - priceRange[0])) * 100}%,
-            #e0e0e0 ${((filters.price[1] - priceRange[0]) / (priceRange[1] - priceRange[0])) * 100}%
-          )`,
-          alignItems: 'center',
-        }}
-      >
-        {children}
-      </div>
-    )}
-    renderThumb={({ props }) => {
-      const { key, ...thumbProps } = props;
-      return (
-        <div
-          key={key}
-          {...thumbProps}
-          className="rounded-full shadow cursor-pointer"
-          style={{
-            ...thumbProps.style,
-            height: '20px',
-            width: '20px',
-            backgroundColor: '#8cc63f',
-            border: '2px solid white',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-          }}
-        />
-      );
-    }}
-  />
-</div>
-  {/* Кнопка сброса фильтров */}
-  <div className="col-span-2 flex justify-center mt-4">
-    <button
-      onClick={resetFilters}
-      className="bg-[#8cc63f] hover:bg-[#7ab82c] text-white font-semibold py-2 px-6 rounded-full transition"
-    >
-      Сбросить фильтры
-    </button>
-  </div>
-</div>
-
-{/* Список автомобилей */}
-<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-  {filtered.slice(0, visibleCount).map((car) => (
-    <div
-      key={car.id}
-      id={`car-${car.id}`}
-      onClick={() => {
-  localStorage.setItem("scrollToUsedCarId", car.id); // 💾 сохранить ID
-  navigate("/UsedCarDetails", { state: { car } });
-}}
-      className="bg-white rounded-lg shadow-lg overflow-hidden cursor-pointer hover:shadow-xl transition"
-    >
-      <img
-        src={car.images[0]}
-        alt={car.model}
-        className="w-full h-48 object-cover"
-        onLoad={() => setLoadingImages(false)}
-      />
-      <div className="p-4">
-        <div className="text-xl font-semibold text-gray-900 mb-2">
-          {car.vendor} {car.model} {car.year}
-        </div>
-        <div className="text-[#8cc63f] font-bold text-lg">
-          {(car.price - car.maxDiscount).toLocaleString()} ₽
-        </div>
-        {car.maxDiscount > 0 && (
-          <div className="text-sm line-through text-gray-500">
-            {car.price.toLocaleString()} ₽
-          </div>
-        )}
-
-        <div className="text-sm text-gray-600 mt-2 space-y-1">
-          <div>Пробег: {car.run ? Number(car.run).toLocaleString() + " км" : "—"}</div>
-          <div>Двигатель: {translateValue(car.engineType) || "—"}</div>
-          <div>Кузов: {translateValue(car.body) || "—"}</div>
-          <div>Цвет: {translateValue(car.color) || "—"}</div>
-          <div>Трансмиссия: {translateValue(car.transmission) || "—"}</div>
-          <div>Привод: {translateValue(car.drive) || "—"}</div>
-          <div>Локация: {car.dealer || "—"}</div>
-        </div>
-
-        <button
-          className="mt-4 w-full py-2 px-4 bg-[#8cc63f] text-white rounded-lg hover:bg-[#7ab82c] transition"
-          onClick={(e) => {
-            e.stopPropagation(); // чтобы клик не переходил на страницу
-            setModalCar(car);
-          }}
-        >
-          Забронировать
-        </button>
-      </div>
-    </div>
-  ))}
-</div>
-
-
-{/* Кнопка "Показать еще" */}
-{visibleCount < filtered.length && (
-  <div className="text-center mt-6 mb-24">
-    <button
-      className="px-6 py-2 bg-[#8cc63f] text-white rounded hover:bg-[#7ab82c] transition"
-      onClick={() => setVisibleCount((prev) => prev + 24)}
-    >
-      Показать еще
-    </button>
-  </div>
-    )}
-          </>
-        )}
-      </div>
-{/* Кнопка наверх */}
-<button
-  onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-  className="fixed bottom-36 right-6 bg-[#8cc63f] text-white p-3 rounded-full shadow-lg hover:bg-[#7ab82c] transition"
->
-  <ArrowUp />
-</button>
-
-{/* Плавающая кнопка фильтра на мобилках */}
-<button
-  onClick={() => setModalFilters(true)}
-  className="md:hidden fixed bottom-20 right-6 bg-[#8cc63f] text-white p-3 rounded-full shadow-lg hover:bg-[#7ab82c] transition"
->
-  <SlidersHorizontal />
-</button>
-
-{/* Модальное окно фильтров */}
-{modalFilters && (
-  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-    <div className="bg-white rounded-lg p-6 w-full max-w-lg shadow-lg max-h-[90vh] overflow-y-auto">
-      <div className="flex justify-between mb-4">
-        <h2 className="text-xl font-bold">Фильтры</h2>
-        <button onClick={() => setModalFilters(false)}>✖</button>
-      </div>
-      <div className="">
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">
-    {/* Марка */}
-    <div className={`filter ${openFilters.vendor ? 'active' : ''}`}>  
-      <h3
-        className="text-lg font-semibold mb-2 cursor-pointer relative flex items-center justify-between"
-        onClick={() => toggleFilterVisibility('vendor')}
-      >
-        Марка
-	      <span className={`filter-arrow ${openFilters.vendor ? 'active' : ''}`}>&#9660;</span>
-      </h3>
-      {openFilters.vendor && filteredOptions.vendors.map((brand) => (
-        <label key={brand} className="flex items-center space-x-2 mb-1">
-          <input
-            type="checkbox"
-            value={brand}
-            checked={filters.vendor.includes(brand)}
-            onChange={() => handleCheckboxChange('vendor', brand)}
-            className="accent-[#8cc63f] w-5 h-5"
-          />
-          <span>{brand}</span>
-        </label>
-      ))}
-    </div>
-
-    {/* Модель */}
-    <div className={`filter ${openFilters.model ? 'active' : ''}`}>
-      <h3
-        className="text-lg font-semibold mb-2 cursor-pointer flex items-center justify-between"
-        onClick={() => toggleFilterVisibility('model')}
-      >
-        Модель
-	      <span className={`filter-arrow ${openFilters.model ? 'active' : ''}`}>&#9660;</span>
-      </h3>
-      {openFilters.model && filteredOptions.models.map((model) => (
-        <label key={model} className="flex items-center space-x-2 mb-1">
-          <input
-            type="checkbox"
-            value={model}
-            checked={filters.model.includes(model)}
-            onChange={() => handleCheckboxChange('model', model)}
-            className="accent-[#8cc63f] w-5 h-5"
-          />
-          <span>{model}</span>
-        </label>
-      ))}
-    </div>
-
-    {/* Цвет */}
-    <div className={`filter ${openFilters.color ? 'active' : ''}`}>
-      <h3
-        className="text-lg font-semibold mb-2 cursor-pointer flex items-center justify-between"
-        onClick={() => toggleFilterVisibility('color')}
-      >
-        Цвет
-	      <span className={`filter-arrow ${openFilters.color ? 'active' : ''}`}>&#9660;</span>
-      </h3>
-      {openFilters.color && filteredOptions.colors.map((color) => (
-        <label key={color} className="flex items-center space-x-2 mb-1">
-          <input
-            type="checkbox"
-            value={color}
-            checked={filters.color.includes(color)}
-            onChange={() => handleCheckboxChange('color', color)}
-            className="accent-[#8cc63f] w-5 h-5"
-          />
-          <span>{translateValue(color)}</span>
-        </label>
-      ))}
-    </div>
-
-    {/* Трансмиссия */}
-    <div className={`filter ${openFilters.transmission ? 'active' : ''}`}>
-      <h3
-        className="text-lg font-semibold mb-2 cursor-pointer flex items-center justify-between"
-        onClick={() => toggleFilterVisibility('transmission')}
-      >
-        Трансмиссия
-	      <span className={`filter-arrow ${openFilters.transmission ? 'active' : ''}`}>&#9660;</span>
-      </h3>
-      {openFilters.transmission && filteredOptions.transmissions.map((transmission) => (
-        <label key={transmission} className="flex items-center space-x-2 mb-1">
-          <input
-            type="checkbox"
-            value={transmission}
-            checked={filters.transmission.includes(transmission)}
-            onChange={() => handleCheckboxChange('transmission', transmission)}
-            className="accent-[#8cc63f] w-5 h-5"
-          />
-          <span>{translateValue(transmission)}</span>
-        </label>
-      ))}
-    </div>
-
-    {/* Тип кузова */}
-    <div className={`filter ${openFilters.body ? 'active' : ''}`}>
-      <h3
-        className="text-lg font-semibold mb-2 cursor-pointer flex items-center justify-between"
-        onClick={() => toggleFilterVisibility('body')}
-      >
-        Кузов
-	      <span className={`filter-arrow ${openFilters.body ? 'active' : ''}`}>&#9660;</span>
-      </h3>
-      {openFilters.body && filteredOptions.bodies.map((body) => (
-        <label key={body} className="flex items-center space-x-2 mb-1">
-          <input
-            type="checkbox"
-            value={body}
-            checked={filters.body.includes(body)}
-            onChange={() => handleCheckboxChange('body', body)}
-            className="accent-[#8cc63f] w-5 h-5"
-          />
-          <span>{translateValue(body)}</span>
-        </label>
-      ))}
-    </div>
-
-    {/* Локация */}
-    <div className={`filter ${openFilters.dealer ? 'active' : ''}`}>
-      <h3
-        className="text-lg font-semibold mb-2 cursor-pointer flex items-center justify-between"
-        onClick={() => toggleFilterVisibility('dealer')}
-      >
-        Локация
-	      <span className={`filter-arrow ${openFilters.dealer ? 'active' : ''}`}>&#9660;</span>
-      </h3>
-      {openFilters.dealer && filteredOptions.dealers.map((dealer) => (
-        <label key={dealer} className="flex items-center space-x-2 mb-1">
-          <input
-            type="checkbox"
-            value={dealer}
-            checked={filters.dealer.includes(dealer)}
-            onChange={() => handleCheckboxChange('dealer', dealer)}
-            className="accent-[#8cc63f] w-5 h-5"
-          />
-          <span>{dealer}</span>
-        </label>
-      ))}
-    </div>
-
-    {/* Год выпуска */}
-    <div className="col-span-2">
-      <label className="block text-sm font-medium text-gray-700 mb-1">
-        Год выпуска: {filters.year[0]} – {filters.year[1]}
-      </label>
-      <Range
-        step={1}
-        min={yearRange[0]}
-        max={yearRange[1]}
-        values={filters.year}
-        onChange={(values) => setFilters({ ...filters, year: values })}
-        renderTrack={({ props, children }) => (
-          <div
-            {...props}
-        className="h-2 my-4 rounded"
-        style={{
-          ...props.style,
-          background: `linear-gradient(
-            to right,
-            #e0e0e0 ${((filters.year[0] - yearRange[0]) / (yearRange[1] - yearRange[0])) * 100}%,
-            #8cc63f ${((filters.year[0] - yearRange[0]) / (yearRange[1] - yearRange[0])) * 100}%,
-            #8cc63f ${((filters.year[1] - yearRange[0]) / (yearRange[1] - yearRange[0])) * 100}%,
-            #e0e0e0 ${((filters.year[1] - yearRange[0]) / (yearRange[1] - yearRange[0])) * 100}%
-          )`,
-          alignItems: 'center',
-        }}
-          >
-            {children}
-          </div>
-        )}
-        renderThumb={({ props }) => {
-          const { key, ...thumbProps } = props;
-          return (
-            <div
-              key={key}
-              {...thumbProps}
-              className="rounded-full shadow cursor-pointer"
-              style={{
-                ...thumbProps.style,
-                height: '20px',
-                width: '20px',
-                backgroundColor: '#8cc63f',
-                border: '2px solid white',
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-              }}
-            />
-          );
-        }}
-      />
-    </div>
-
-    {/* Пробег */}
-    <div className="col-span-2">
-      <label className="block text-sm font-medium text-gray-700 mb-1">
-        Пробег: {filters.run[0].toLocaleString()} км – {filters.run[1].toLocaleString()} км
-      </label>
-      <Range
-        step={1000}
-        min={runRange[0]}
-        max={runRange[1]}
-        values={filters.run}
-        onChange={(values) => setFilters({ ...filters, run: values })}
-        renderTrack={({ props, children }) => (
-          <div
-            {...props}
-        className="h-2 my-4 rounded"
-        style={{
-          ...props.style,
-          background: `linear-gradient(
-            to right,
-            #e0e0e0 ${((filters.run[0] - runRange[0]) / (runRange[1] - runRange[0])) * 100}%,
-            #8cc63f ${((filters.run[0] - runRange[0]) / (runRange[1] - runRange[0])) * 100}%,
-            #8cc63f ${((filters.run[1] - runRange[0]) / (runRange[1] - runRange[0])) * 100}%,
-            #e0e0e0 ${((filters.run[1] - runRange[0]) / (runRange[1] - runRange[0])) * 100}%
-          )`,
-          alignItems: 'center',
-        }}
-          >
-            {children}
-          </div>
-        )}
-        renderThumb={({ props }) => {
-          const { key, ...thumbProps } = props;
-          return (
-            <div
-              key={key}
-              {...thumbProps}
-              className="rounded-full shadow cursor-pointer"
-              style={{
-                ...thumbProps.style,
-                height: '20px',
-                width: '20px',
-                backgroundColor: '#8cc63f',
-                border: '2px solid white',
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-              }}
-            />
-          );
-        }}
-      />
-    </div>
-
-  </div>
-<div className="col-span-2">
-  <label className="block text-sm font-medium text-gray-700 mb-1">
-    Стоимость: {filters.price[0].toLocaleString()} ₽ – {filters.price[1].toLocaleString()} ₽
-  </label>
-  <Range
-    step={10000}
-    min={priceRange[0]}
-    max={priceRange[1]}
-    values={filters.price}
-    onChange={(values) => setFilters({ ...filters, price: values })}
-    renderTrack={({ props, children }) => (
-      <div
-        {...props}
-        className="h-2 my-4 rounded"
-        style={{
-          ...props.style,
-          background: `linear-gradient(
-            to right,
-            #e0e0e0 ${((filters.price[0] - priceRange[0]) / (priceRange[1] - priceRange[0])) * 100}%,
-            #8cc63f ${((filters.price[0] - priceRange[0]) / (priceRange[1] - priceRange[0])) * 100}%,
-            #8cc63f ${((filters.price[1] - priceRange[0]) / (priceRange[1] - priceRange[0])) * 100}%,
-            #e0e0e0 ${((filters.price[1] - priceRange[0]) / (priceRange[1] - priceRange[0])) * 100}%
-          )`,
-          alignItems: 'center',
-        }}
-      >
-        {children}
-      </div>
-    )}
-    renderThumb={({ props }) => {
-      const { key, ...thumbProps } = props;
-      return (
-        <div
-          key={key}
-          {...thumbProps}
-          className="rounded-full shadow cursor-pointer"
-          style={{
-            ...thumbProps.style,
-            height: '20px',
-            width: '20px',
-            backgroundColor: '#8cc63f',
-            border: '2px solid white',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-          }}
-        />
-      );
-    }}
-  />
-</div>
-
-      </div>
-      <div className="mt-4 flex justify-between">
-        <button
-          onClick={resetFilters}
-          className="bg-[#8cc63f] hover:bg-[#7ab82c] text-white font-semibold py-2 px-6 rounded-full transition"
-        >
-          Сбросить фильтры
-        </button>
-        <button
-          onClick={() => setModalFilters(false)}
-          className="text-[#8cc63f] font-semibold"
-        >
-          Применить
-        </button>
-      </div>
-    </div>
-  </div>
-)}
-
-{/* Модальное окно бронирования */}
-{modalCar && (
-  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-    <form
-      onSubmit={handleSubmit}
-      className="bg-white rounded-lg p-6 w-full max-w-md shadow-lg"
-    >
-      <h2 className="text-xl font-bold mb-4">
-        Бронирование: {modalCar.vendor} {modalCar.model} {modalCar.year}
-      </h2>
-      <input
-        type="text"
-        required
-        placeholder="Имя"
-        className="w-full p-2 mb-3 border rounded"
-        value={formData.name}
-        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-      />
-      <input
-        type="tel"
-        required
-        placeholder="Телефон"
-        className="w-full p-2 mb-3 border rounded"
-        value={formData.phone}
-        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-      />
-      <div className="flex justify-end gap-2">
+    return (
+      <div className="border border-slate-200/80 rounded-2xl bg-white overflow-hidden shadow-xs transition">
         <button
           type="button"
-          onClick={() => setModalCar(null)}
-          className="px-4 py-2 border rounded"
+          onClick={() => toggleFilterVisibility(key)}
+          className="w-full px-4 py-3 flex items-center justify-between text-left hover:bg-slate-50 transition"
         >
-          Отмена
+          <div className="flex items-center gap-2">
+            <span className="font-semibold text-slate-800 text-sm">{title}</span>
+            {selectedCount > 0 && (
+              <span className="px-2 py-0.5 text-xs font-bold bg-[#8cc63f] text-white rounded-full">
+                {selectedCount}
+              </span>
+            )}
+          </div>
+          <ChevronDown
+            className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${
+              isOpen ? "rotate-180 text-slate-700" : ""
+            }`}
+          />
         </button>
-        <button
-          type="submit"
-          className="px-4 py-2 bg-[#8cc63f] text-white rounded hover:bg-[#7ab82c] transition"
-        >
-          Отправить
-        </button>
-      </div>
-    </form>
-  </div>
-)}
 
-		     <BottomNav />
+        {isOpen && (
+          <div className="p-3 pt-1 border-t border-slate-100 max-h-52 overflow-y-auto space-y-1 scrollbar-thin">
+            {items.length === 0 ? (
+              <p className="text-xs text-slate-400 py-1 px-2">Нет доступных опций</p>
+            ) : (
+              items.map((item) => {
+                const isChecked = filters[key]?.includes(item);
+                const displayLabel = isTranslate ? translateValue(item) : item;
+                return (
+                  <label
+                    key={item}
+                    className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl cursor-pointer text-sm transition select-none ${
+                      isChecked ? "bg-[#8cc63f]/10 text-slate-900 font-medium" : "text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      value={item}
+                      checked={isChecked}
+                      onChange={() => handleCheckboxChange(key, item)}
+                      className="accent-[#8cc63f] w-4 h-4 rounded text-[#8cc63f] focus:ring-0"
+                    />
+                    <span className="break-words leading-tight text-xs md:text-sm">{displayLabel}</span>
+                  </label>
+                );
+              })
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100/60 pb-32 text-slate-900">
+      {/* Шапка страницы */}
+      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-100 shadow-xs px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3.5">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleBack}
+              aria-label="Назад"
+              className="p-2.5 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 active:scale-95 transition"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <div>
+              <h1 className="text-lg md:text-xl font-bold text-slate-900 tracking-tight leading-snug">
+                Автомобили с пробегом
+              </h1>
+              <p className="text-xs text-slate-500">
+                {!loading ? `В наличии: ${filtered.length} шт.` : "Загрузка каталога..."}
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={() => setModalFilters(true)}
+            className="flex items-center gap-2 px-3.5 py-2 rounded-full bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800 active:scale-95 transition shadow-sm"
+          >
+            <SlidersHorizontal className="w-3.5 h-3.5 text-[#8cc63f]" />
+            <span>Фильтры</span>
+            {activeFiltersCount > 0 && (
+              <span className="w-5 h-5 flex items-center justify-center rounded-full bg-[#8cc63f] text-slate-950 font-bold text-[11px]">
+                {activeFiltersCount}
+              </span>
+            )}
+          </button>
+        </div>
+      </header>
+
+      <main className="max-w-7xl mx-auto px-4 mt-4">
+        {loading ? (
+          <div className="py-20 flex flex-col items-center justify-center">
+            <Preloader />
+            <p className="text-sm text-slate-500 mt-4 animate-pulse">Загружаем автомобили с пробегом...</p>
+          </div>
+        ) : (
+          <>
+            {/* Десктопная панель фильтрации */}
+            <div className="hidden lg:block bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs mb-8">
+              <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
+                <div className="flex items-center gap-2">
+                  <SlidersHorizontal className="w-5 h-5 text-[#8cc63f]" />
+                  <h2 className="text-base font-bold text-slate-900">Подбор по параметрам</h2>
+                </div>
+                {activeFiltersCount > 0 && (
+                  <button
+                    onClick={resetFilters}
+                    className="flex items-center gap-1.5 text-xs text-rose-500 hover:text-rose-600 font-semibold"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    Сбросить ({activeFiltersCount})
+                  </button>
+                )}
+              </div>
+
+              <div className="grid grid-cols-3 gap-4 mb-5">
+                {renderFilterAccordion("Марка", "vendor", filteredOptions.vendors)}
+                {renderFilterAccordion("Модель", "model", filteredOptions.models)}
+                {renderFilterAccordion("Дилер", "dealer", filteredOptions.dealers)}
+                {renderFilterAccordion("Кузов", "body", filteredOptions.bodies, true)}
+                {renderFilterAccordion("Трансмиссия", "transmission", filteredOptions.transmissions, true)}
+                {renderFilterAccordion("Привод", "drive", filteredOptions.drives, true)}
+              </div>
+
+              {/* Слайдеры для десктопа */}
+              <div className="grid grid-cols-3 gap-6 pt-3 border-t border-slate-100">
+                {/* Слайдер цены */}
+                <div>
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Цена</span>
+                    <span className="text-xs font-bold text-slate-900">
+                      {filters.price?.[0]?.toLocaleString()} ₽ — {filters.price?.[1]?.toLocaleString()} ₽
+                    </span>
+                  </div>
+                  <Range
+                    step={10000}
+                    min={priceRange[0]}
+                    max={priceRange[1]}
+                    values={filters.price || priceRange}
+                    onChange={(values) => setFilters({ ...filters, price: values })}
+                    renderTrack={({ props, children }) => (
+                      <div
+                        {...props}
+                        className="h-2 my-3 rounded-full relative cursor-pointer"
+                        style={{
+                          ...props.style,
+                          background: `linear-gradient(
+                            to right,
+                            #cbd5e1 ${((filters.price[0] - priceRange[0]) / Math.max(1, priceRange[1] - priceRange[0])) * 100}%,
+                            #8cc63f ${((filters.price[0] - priceRange[0]) / Math.max(1, priceRange[1] - priceRange[0])) * 100}%,
+                            #8cc63f ${((filters.price[1] - priceRange[0]) / Math.max(1, priceRange[1] - priceRange[0])) * 100}%,
+                            #cbd5e1 ${((filters.price[1] - priceRange[0]) / Math.max(1, priceRange[1] - priceRange[0])) * 100}%
+                          )`,
+                        }}
+                      >
+                        {children}
+                      </div>
+                    )}
+                    renderThumb={({ props }) => {
+                      const { key, ...thumbProps } = props;
+                      return (
+                        <div
+                          key={key}
+                          {...thumbProps}
+                          className="w-5 h-5 rounded-full bg-white border-2 border-[#8cc63f] shadow-md cursor-grab active:cursor-grabbing focus:outline-none"
+                        />
+                      );
+                    }}
+                  />
+                </div>
+
+                {/* Слайдер пробега */}
+                <div>
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Пробег</span>
+                    <span className="text-xs font-bold text-slate-900">
+                      {filters.run?.[0]?.toLocaleString()} км — {filters.run?.[1]?.toLocaleString()} км
+                    </span>
+                  </div>
+                  <Range
+                    step={1000}
+                    min={runRange[0]}
+                    max={runRange[1]}
+                    values={filters.run || runRange}
+                    onChange={(values) => setFilters({ ...filters, run: values })}
+                    renderTrack={({ props, children }) => (
+                      <div
+                        {...props}
+                        className="h-2 my-3 rounded-full relative cursor-pointer"
+                        style={{
+                          ...props.style,
+                          background: `linear-gradient(
+                            to right,
+                            #cbd5e1 ${((filters.run[0] - runRange[0]) / Math.max(1, runRange[1] - runRange[0])) * 100}%,
+                            #8cc63f ${((filters.run[0] - runRange[0]) / Math.max(1, runRange[1] - runRange[0])) * 100}%,
+                            #8cc63f ${((filters.run[1] - runRange[0]) / Math.max(1, runRange[1] - runRange[0])) * 100}%,
+                            #cbd5e1 ${((filters.run[1] - runRange[0]) / Math.max(1, runRange[1] - runRange[0])) * 100}%
+                          )`,
+                        }}
+                      >
+                        {children}
+                      </div>
+                    )}
+                    renderThumb={({ props }) => {
+                      const { key, ...thumbProps } = props;
+                      return (
+                        <div
+                          key={key}
+                          {...thumbProps}
+                          className="w-5 h-5 rounded-full bg-white border-2 border-[#8cc63f] shadow-md cursor-grab active:cursor-grabbing focus:outline-none"
+                        />
+                      );
+                    }}
+                  />
+                </div>
+
+                {/* Слайдер года */}
+                <div>
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Год выпуска</span>
+                    <span className="text-xs font-bold text-slate-900">
+                      {filters.year?.[0]} — {filters.year?.[1]}
+                    </span>
+                  </div>
+                  <Range
+                    step={1}
+                    min={yearRange[0]}
+                    max={yearRange[1]}
+                    values={filters.year || yearRange}
+                    onChange={(values) => setFilters({ ...filters, year: values })}
+                    renderTrack={({ props, children }) => (
+                      <div
+                        {...props}
+                        className="h-2 my-3 rounded-full relative cursor-pointer"
+                        style={{
+                          ...props.style,
+                          background: `linear-gradient(
+                            to right,
+                            #cbd5e1 ${((filters.year[0] - yearRange[0]) / Math.max(1, yearRange[1] - yearRange[0])) * 100}%,
+                            #8cc63f ${((filters.year[0] - yearRange[0]) / Math.max(1, yearRange[1] - yearRange[0])) * 100}%,
+                            #8cc63f ${((filters.year[1] - yearRange[0]) / Math.max(1, yearRange[1] - yearRange[0])) * 100}%,
+                            #cbd5e1 ${((filters.year[1] - yearRange[0]) / Math.max(1, yearRange[1] - yearRange[0])) * 100}%
+                          )`,
+                        }}
+                      >
+                        {children}
+                      </div>
+                    )}
+                    renderThumb={({ props }) => {
+                      const { key, ...thumbProps } = props;
+                      return (
+                        <div
+                          key={key}
+                          {...thumbProps}
+                          className="w-5 h-5 rounded-full bg-white border-2 border-[#8cc63f] shadow-md cursor-grab active:cursor-grabbing focus:outline-none"
+                        />
+                      );
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Активные фильтры быстрыми чипсами */}
+            {activeFiltersCount > 0 && (
+              <div className="flex flex-wrap items-center gap-2 mb-4">
+                <span className="text-xs text-slate-400 font-medium mr-1">Фильтры:</span>
+                {filters.vendor.map((v) => (
+                  <button
+                    key={v}
+                    onClick={() => handleCheckboxChange("vendor", v)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1 bg-white border border-slate-200 text-xs font-semibold text-slate-800 rounded-full shadow-2xs hover:bg-slate-50 transition"
+                  >
+                    <span>{v}</span>
+                    <X className="w-3 h-3 text-slate-400" />
+                  </button>
+                ))}
+                {filters.model.map((m) => (
+                  <button
+                    key={m}
+                    onClick={() => handleCheckboxChange("model", m)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1 bg-white border border-slate-200 text-xs font-semibold text-slate-800 rounded-full shadow-2xs hover:bg-slate-50 transition"
+                  >
+                    <span>{m}</span>
+                    <X className="w-3 h-3 text-slate-400" />
+                  </button>
+                ))}
+                {filters.dealer.map((d) => (
+                  <button
+                    key={d}
+                    onClick={() => handleCheckboxChange("dealer", d)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1 bg-white border border-slate-200 text-xs font-semibold text-slate-800 rounded-full shadow-2xs hover:bg-slate-50 transition"
+                  >
+                    <span>{d}</span>
+                    <X className="w-3 h-3 text-slate-400" />
+                  </button>
+                ))}
+                {filters.body.map((b) => (
+                  <button
+                    key={b}
+                    onClick={() => handleCheckboxChange("body", b)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1 bg-white border border-slate-200 text-xs font-semibold text-slate-800 rounded-full shadow-2xs hover:bg-slate-50 transition"
+                  >
+                    <span>{translateValue(b)}</span>
+                    <X className="w-3 h-3 text-slate-400" />
+                  </button>
+                ))}
+                {filters.transmission.map((t) => (
+                  <button
+                    key={t}
+                    onClick={() => handleCheckboxChange("transmission", t)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1 bg-white border border-slate-200 text-xs font-semibold text-slate-800 rounded-full shadow-2xs hover:bg-slate-50 transition"
+                  >
+                    <span>{translateValue(t)}</span>
+                    <X className="w-3 h-3 text-slate-400" />
+                  </button>
+                ))}
+                {filters.drive.map((dr) => (
+                  <button
+                    key={dr}
+                    onClick={() => handleCheckboxChange("drive", dr)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1 bg-white border border-slate-200 text-xs font-semibold text-slate-800 rounded-full shadow-2xs hover:bg-slate-50 transition"
+                  >
+                    <span>{translateValue(dr)}</span>
+                    <X className="w-3 h-3 text-slate-400" />
+                  </button>
+                ))}
+                <button
+                  onClick={resetFilters}
+                  className="text-xs text-rose-500 font-bold hover:underline px-2 py-1"
+                >
+                  Очистить все
+                </button>
+              </div>
+            )}
+
+            {/* Карточки авто */}
+            {filtered.length === 0 ? (
+              <div className="bg-white rounded-3xl p-10 text-center border border-slate-200/80 shadow-xs max-w-md mx-auto my-12">
+                <div className="w-16 h-16 rounded-2xl bg-amber-50 text-amber-500 mx-auto flex items-center justify-center mb-4">
+                  <CarIcon className="w-8 h-8" />
+                </div>
+                <h3 className="text-lg font-bold text-slate-900 mb-1">Ничего не найдено</h3>
+                <p className="text-xs text-slate-500 mb-5 leading-relaxed">
+                  По заданным параметрам сейчас нет автомобилей в наличии. Попробуйте сбросить некоторые фильтры.
+                </p>
+                <button
+                  onClick={resetFilters}
+                  className="px-6 py-3 rounded-xl bg-slate-900 text-white text-xs font-bold hover:bg-slate-800 transition"
+                >
+                  Сбросить фильтры
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-5">
+                {filtered.slice(0, visibleCount).map((car) => {
+                  const finalPrice = car.price - (car.maxDiscount || 0);
+                  const firstPhoto = car.images?.[0];
+
+                  return (
+                    <article
+                      key={car.id}
+                      id={`car-${car.id}`}
+                      onClick={() => {
+                        try {
+                          localStorage.setItem("scrollToUsedCarId", car.id);
+                        } catch (e) {}
+                        navigate("/UsedCarDetails", { state: { car } });
+                      }}
+                      className="group bg-white rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-all duration-200 overflow-hidden flex flex-col cursor-pointer"
+                    >
+                      {/* Блок фотографии с бейджами */}
+                      <div className="relative aspect-16/10 bg-slate-100 overflow-hidden">
+                        {firstPhoto ? (
+                          <img
+                            src={firstPhoto}
+                            alt={`${car.vendor} ${car.model}`}
+                            loading="lazy"
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            onError={(e) => {
+                              e.currentTarget.style.display = "none";
+                            }}
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-slate-300">
+                            <CarIcon className="w-12 h-12" />
+                          </div>
+                        )}
+
+                        {/* Бейджи поверх фото */}
+                        <div className="absolute top-2.5 left-2.5 flex flex-wrap gap-1.5">
+                          {car.year > 0 && (
+                            <span className="px-2.5 py-1 bg-slate-900/80 backdrop-blur-md text-white text-[11px] font-bold rounded-lg shadow-sm">
+                              {car.year} г.
+                            </span>
+                          )}
+                          {car.run !== undefined && (
+                            <span className="px-2.5 py-1 bg-slate-900/80 backdrop-blur-md text-white text-[11px] font-medium rounded-lg shadow-sm flex items-center gap-1">
+                              <Gauge className="w-3 h-3 text-[#8cc63f]" />
+                              {Number(car.run).toLocaleString()} км
+                            </span>
+                          )}
+                        </div>
+
+                        {car.maxDiscount > 0 && (
+                          <div className="absolute top-2.5 right-2.5">
+                            <span className="px-2 py-1 bg-rose-500 text-white text-[10px] font-extrabold uppercase rounded-lg shadow-sm tracking-wide">
+                              Скидка {car.maxDiscount.toLocaleString()} ₽
+                            </span>
+                          </div>
+                        )}
+
+                        {/* Дилерский бейдж поверх фото */}
+                        {car.dealer && (
+                          <div className="absolute bottom-2 left-2 right-2 z-10">
+                            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-900/80 backdrop-blur-md text-[11px] font-medium text-white max-w-full truncate shadow-xs">
+                              <MapPin className="w-3 h-3 text-[#8cc63f] shrink-0" />
+                              <span className="truncate">{car.dealer}</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Информационный блок */}
+                      <div className="p-4 flex-1 flex flex-col justify-between">
+                        <div>
+                          {/* Марка, модель и год */}
+                          <div className="flex items-start justify-between gap-2 mb-1.5">
+                            <h3 className="text-base font-bold text-slate-900 leading-snug group-hover:text-emerald-700 transition">
+                              {car.vendor} {car.model}
+                            </h3>
+                            {car.year > 0 && (
+                              <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[11px] font-bold shrink-0">
+                                {car.year}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Цены */}
+                          <div className="mb-3">
+                            <div className="flex items-baseline gap-2">
+                              <span className="text-xl font-extrabold text-[#75ab32] tracking-tight">
+                                {finalPrice.toLocaleString()} ₽
+                              </span>
+                              {car.maxDiscount > 0 && (
+                                <span className="text-xs text-slate-400 line-through">
+                                  {car.price.toLocaleString()} ₽
+                                </span>
+                              )}
+                            </div>
+                            {car.maxDiscount > 0 && (
+                              <span className="text-[11px] font-bold text-emerald-600">
+                                Выгода: -{car.maxDiscount.toLocaleString()} ₽
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Характеристики (пилюли в едином стиле) */}
+                          <div className="flex flex-wrap gap-1.5 mb-4">
+                            {car.run !== undefined && (
+                              <span className="inline-block px-2.5 py-1 bg-slate-100/80 text-slate-600 text-[11px] font-medium rounded-lg leading-none">
+                                {Number(car.run).toLocaleString()} км
+                              </span>
+                            )}
+                            {(car.engineVolume || car.enginePower) && (
+                              <span className="inline-block px-2.5 py-1 bg-slate-100/80 text-slate-600 text-[11px] font-medium rounded-lg leading-none">
+                                {car.engineVolume ? `${car.engineVolume} л.` : ""} {car.enginePower ? `${car.enginePower} л.с.` : ""}
+                              </span>
+                            )}
+                            {car.transmission && (
+                              <span className="inline-block px-2.5 py-1 bg-slate-100/80 text-slate-600 text-[11px] font-medium rounded-lg leading-none">
+                                {translateValue(car.transmission)}
+                              </span>
+                            )}
+                            {car.drive && (
+                              <span className="inline-block px-2.5 py-1 bg-slate-100/80 text-slate-600 text-[11px] font-medium rounded-lg leading-none">
+                                {translateValue(car.drive)}
+                              </span>
+                            )}
+                            {car.body && (
+                              <span className="inline-block px-2.5 py-1 bg-slate-100/80 text-slate-600 text-[11px] font-medium rounded-lg leading-none">
+                                {translateValue(car.body)}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Кнопка бронирования (от 50px высотой, как в каталоге новых авто) */}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setModalCar(car);
+                          }}
+                          className="w-full min-h-[50px] py-3 px-4 rounded-xl bg-gradient-to-r from-[#8cc63f] to-[#7db636] hover:from-[#7db636] hover:to-[#6ea02e] text-white font-bold text-sm tracking-wide shadow-sm hover:shadow active:scale-[0.98] transition flex items-center justify-center gap-2"
+                        >
+                          <Sparkles className="w-4 h-4" />
+                          <span>Забронировать</span>
+                        </button>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Кнопка Показать еще */}
+            {visibleCount < filtered.length && (
+              <div className="text-center mt-8 mb-12">
+                <button
+                  onClick={() => setVisibleCount((prev) => prev + 24)}
+                  className="min-h-[48px] px-8 py-3 rounded-2xl bg-white border border-slate-200 text-slate-800 text-xs font-bold shadow-xs hover:bg-slate-50 active:scale-95 transition inline-flex items-center gap-2"
+                >
+                  <span>Показать еще 24 авто</span>
+                  <span className="text-slate-400 font-normal">
+                    (осталось {filtered.length - visibleCount})
+                  </span>
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </main>
+
+      {/* Плавающая кнопка фильтров (для мобильных, строго как в каталоге новых авто) */}
+      <button
+        onClick={() => setModalFilters(true)}
+        aria-label="Открыть фильтры"
+        className="lg:hidden fixed bottom-24 right-4 z-40 p-3.5 rounded-full bg-slate-900 text-white shadow-xl hover:bg-slate-800 active:scale-90 transition border border-slate-700/50 flex items-center justify-center"
+      >
+        <SlidersHorizontal className="w-5 h-5 text-[#8cc63f]" />
+        {activeFiltersCount > 0 && (
+          <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-[#8cc63f] text-slate-950 text-[10px] font-black flex items-center justify-center ring-2 ring-white">
+            {activeFiltersCount}
+          </span>
+        )}
+      </button>
+
+      {/* Кнопка наверх (строго как в каталоге новых авто) */}
+      <button
+        onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+        aria-label="Наверх"
+        className="fixed bottom-38 right-4 z-40 p-3 rounded-full bg-white/90 backdrop-blur-md text-slate-700 border border-slate-200 shadow-md hover:bg-white active:scale-90 transition"
+      >
+        <ArrowUp className="w-5 h-5" />
+      </button>
+
+      {/* Модальное окно фильтров на смартфонах (строго как в каталоге новых авто) */}
+      {modalFilters && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-white w-full sm:max-w-xl max-h-[88vh] rounded-t-3xl sm:rounded-3xl flex flex-col shadow-2xl overflow-hidden">
+            {/* Шапка модалки */}
+            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-2">
+                <SlidersHorizontal className="w-5 h-5 text-[#8cc63f]" />
+                <h3 className="text-base font-bold text-slate-900">Фильтры авто с пробегом</h3>
+              </div>
+              <button
+                onClick={() => setModalFilters(false)}
+                className="p-2 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Тело фильтров */}
+            <div className="p-5 overflow-y-auto space-y-4 flex-1">
+              {/* Слайдер цены */}
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/60">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-xs font-semibold text-slate-500 uppercase">Цена</span>
+                  <span className="text-xs font-bold text-slate-900">
+                    {filters.price?.[0]?.toLocaleString()} ₽ — {filters.price?.[1]?.toLocaleString()} ₽
+                  </span>
+                </div>
+                <Range
+                  step={10000}
+                  min={priceRange[0]}
+                  max={priceRange[1]}
+                  values={filters.price || priceRange}
+                  onChange={(values) => setFilters({ ...filters, price: values })}
+                  renderTrack={({ props, children }) => (
+                    <div
+                      {...props}
+                      className="h-2 my-3 rounded-full relative cursor-pointer"
+                      style={{
+                        ...props.style,
+                        background: `linear-gradient(
+                          to right,
+                          #cbd5e1 ${((filters.price[0] - priceRange[0]) / Math.max(1, priceRange[1] - priceRange[0])) * 100}%,
+                          #8cc63f ${((filters.price[0] - priceRange[0]) / Math.max(1, priceRange[1] - priceRange[0])) * 100}%,
+                          #8cc63f ${((filters.price[1] - priceRange[0]) / Math.max(1, priceRange[1] - priceRange[0])) * 100}%,
+                          #cbd5e1 ${((filters.price[1] - priceRange[0]) / Math.max(1, priceRange[1] - priceRange[0])) * 100}%
+                        )`,
+                      }}
+                    >
+                      {children}
+                    </div>
+                  )}
+                  renderThumb={({ props }) => {
+                    const { key, ...thumbProps } = props;
+                    return (
+                      <div
+                        key={key}
+                        {...thumbProps}
+                        className="w-5 h-5 rounded-full bg-white border-2 border-[#8cc63f] shadow-md cursor-grab active:cursor-grabbing focus:outline-none"
+                      />
+                    );
+                  }}
+                />
+              </div>
+
+              {/* Слайдер пробега */}
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/60">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-xs font-semibold text-slate-500 uppercase">Пробег</span>
+                  <span className="text-xs font-bold text-slate-900">
+                    {filters.run?.[0]?.toLocaleString()} км — {filters.run?.[1]?.toLocaleString()} км
+                  </span>
+                </div>
+                <Range
+                  step={1000}
+                  min={runRange[0]}
+                  max={runRange[1]}
+                  values={filters.run || runRange}
+                  onChange={(values) => setFilters({ ...filters, run: values })}
+                  renderTrack={({ props, children }) => (
+                    <div
+                      {...props}
+                      className="h-2 my-3 rounded-full relative cursor-pointer"
+                      style={{
+                        ...props.style,
+                        background: `linear-gradient(
+                          to right,
+                          #cbd5e1 ${((filters.run[0] - runRange[0]) / Math.max(1, runRange[1] - runRange[0])) * 100}%,
+                          #8cc63f ${((filters.run[0] - runRange[0]) / Math.max(1, runRange[1] - runRange[0])) * 100}%,
+                          #8cc63f ${((filters.run[1] - runRange[0]) / Math.max(1, runRange[1] - runRange[0])) * 100}%,
+                          #cbd5e1 ${((filters.run[1] - runRange[0]) / Math.max(1, runRange[1] - runRange[0])) * 100}%
+                        )`,
+                      }}
+                    >
+                      {children}
+                    </div>
+                  )}
+                  renderThumb={({ props }) => {
+                    const { key, ...thumbProps } = props;
+                    return (
+                      <div
+                        key={key}
+                        {...thumbProps}
+                        className="w-5 h-5 rounded-full bg-white border-2 border-[#8cc63f] shadow-md cursor-grab active:cursor-grabbing focus:outline-none"
+                      />
+                    );
+                  }}
+                />
+              </div>
+
+              {/* Слайдер года */}
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/60">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-xs font-semibold text-slate-500 uppercase">Год выпуска</span>
+                  <span className="text-xs font-bold text-slate-900">
+                    {filters.year?.[0]} — {filters.year?.[1]}
+                  </span>
+                </div>
+                <Range
+                  step={1}
+                  min={yearRange[0]}
+                  max={yearRange[1]}
+                  values={filters.year || yearRange}
+                  onChange={(values) => setFilters({ ...filters, year: values })}
+                  renderTrack={({ props, children }) => (
+                    <div
+                      {...props}
+                      className="h-2 my-3 rounded-full relative cursor-pointer"
+                      style={{
+                        ...props.style,
+                        background: `linear-gradient(
+                          to right,
+                          #cbd5e1 ${((filters.year[0] - yearRange[0]) / Math.max(1, yearRange[1] - yearRange[0])) * 100}%,
+                          #8cc63f ${((filters.year[0] - yearRange[0]) / Math.max(1, yearRange[1] - yearRange[0])) * 100}%,
+                          #8cc63f ${((filters.year[1] - yearRange[0]) / Math.max(1, yearRange[1] - yearRange[0])) * 100}%,
+                          #cbd5e1 ${((filters.year[1] - yearRange[0]) / Math.max(1, yearRange[1] - yearRange[0])) * 100}%
+                        )`,
+                      }}
+                    >
+                      {children}
+                    </div>
+                  )}
+                  renderThumb={({ props }) => {
+                    const { key, ...thumbProps } = props;
+                    return (
+                      <div
+                        key={key}
+                        {...thumbProps}
+                        className="w-5 h-5 rounded-full bg-white border-2 border-[#8cc63f] shadow-md cursor-grab active:cursor-grabbing focus:outline-none"
+                      />
+                    );
+                  }}
+                />
+              </div>
+
+              {renderFilterAccordion("Марка", "vendor", filteredOptions.vendors)}
+              {renderFilterAccordion("Модель", "model", filteredOptions.models)}
+              {renderFilterAccordion("Дилер", "dealer", filteredOptions.dealers)}
+              {renderFilterAccordion("Кузов", "body", filteredOptions.bodies, true)}
+              {renderFilterAccordion("Трансмиссия", "transmission", filteredOptions.transmissions, true)}
+              {renderFilterAccordion("Привод", "drive", filteredOptions.drives, true)}
+              {renderFilterAccordion("Цвет", "color", filteredOptions.colors, true)}
+            </div>
+
+            {/* Подвал с кнопками (как в каталоге новых авто) */}
+            <div className="p-4 border-t border-slate-100 bg-slate-50/80 flex items-center gap-3 shrink-0 pb-[max(1rem,env(safe-area-inset-bottom))]">
+              <button
+                type="button"
+                onClick={resetFilters}
+                className="py-3 px-4 rounded-xl border border-slate-200 text-slate-700 font-bold text-xs hover:bg-slate-100 transition"
+              >
+                Сбросить
+              </button>
+              <button
+                type="button"
+                onClick={() => setModalFilters(false)}
+                className="flex-1 py-3 px-4 rounded-xl bg-slate-900 text-white font-bold text-xs hover:bg-slate-800 transition"
+              >
+                Показать {filtered.length} авто
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Модальное окно бронирования (как в каталоге новых авто) */}
+      {modalCar && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <form
+            onSubmit={handleSubmitBooking}
+            className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl relative overflow-hidden flex flex-col pb-[max(1.5rem,env(safe-area-inset-bottom))]"
+          >
+            <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-[#8cc63f]/10 text-[#75ab32] flex items-center justify-center">
+                  <Sparkles className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 text-base leading-tight">Бронирование</h3>
+                  <p className="text-xs text-slate-500">Закрепление цены и бронь автомобиля</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setModalCar(null)}
+                className="p-1.5 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Карточка выбранного авто */}
+            <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200/70 mb-4 flex items-center gap-3">
+              {modalCar.images?.[0] ? (
+                <img
+                  src={modalCar.images[0]}
+                  alt={modalCar.model}
+                  className="w-16 h-12 object-cover rounded-lg shrink-0"
+                />
+              ) : (
+                <div className="w-16 h-12 bg-slate-200 rounded-lg flex items-center justify-center text-slate-400">
+                  <CarIcon className="w-5 h-5" />
+                </div>
+              )}
+              <div className="min-w-0 flex-1">
+                <h4 className="font-bold text-slate-900 text-sm truncate">
+                  {modalCar.vendor} {modalCar.model} {modalCar.year > 0 ? `(${modalCar.year})` : ""}
+                </h4>
+                <p className="text-xs text-[#75ab32] font-extrabold">
+                  {(modalCar.price - (modalCar.maxDiscount || 0)).toLocaleString()} ₽
+                </p>
+                {modalCar.dealer && (
+                  <p className="text-[11px] text-slate-500 truncate flex items-center gap-1 mt-0.5">
+                    <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
+                    <span>{modalCar.dealer}</span>
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-3 mb-5">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Ваше имя
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Как к вам обращаться"
+                  className="w-full px-3.5 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#8cc63f] focus:border-transparent transition"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Номер телефона
+                </label>
+                <input
+                  type="tel"
+                  required
+                  placeholder="+7 (___) ___-__-__"
+                  className="w-full px-3.5 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#8cc63f] focus:border-transparent transition"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setModalCar(null)}
+                className="py-3 px-4 rounded-xl border border-slate-200 text-slate-700 text-xs font-bold hover:bg-slate-50 transition"
+              >
+                Отмена
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="flex-1 min-h-[50px] py-3 px-4 rounded-xl bg-gradient-to-r from-[#8cc63f] to-[#7db636] hover:from-[#7db636] hover:to-[#6ea02e] text-white text-xs font-bold shadow-md hover:shadow active:scale-[0.98] transition flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {isSubmitting ? (
+                  <span>Отправка заявки...</span>
+                ) : (
+                  <>
+                    <Check className="w-4 h-4" />
+                    <span>Отправить заявку</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Нижняя навигация */}
+      <BottomNav />
     </div>
   );
 }
